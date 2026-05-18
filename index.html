@@ -761,6 +761,14 @@
         gap: 8px;
       }
 
+      .answer-panel .result {
+        order: 1;
+      }
+
+      .answer-panel .prompt {
+        order: 2;
+      }
+
       .prompt,
       .result,
       .stat {
@@ -1414,6 +1422,20 @@
 
     const playerStats = loadStats();
 
+    function isPhoneLayout() {
+      return window.matchMedia('(max-width: 760px)').matches;
+    }
+
+    function visibleFretCount() {
+      // On phones, Interval/Chord modes are more readable in the first 7 frets.
+      // Note Trainer keeps the full 12 frets so note-location practice still covers the neck.
+      return isPhoneLayout() && trainerMode !== 'notes' ? 7 : 12;
+    }
+
+    function randomFretLimit() {
+      return visibleFretCount();
+    }
+
     function pctXForFret(fret) {
       if (fret === 0) return pctXForFretWire(0);
       const left = pctXForFretWire(fret - 1);
@@ -1422,11 +1444,11 @@
     }
 
     function pctXForFretWire(fret) {
-      // Real guitar spacing, normalised so fret 12 fills this visible neck.
-      // On a real guitar, the 12th fret is halfway along the full scale length.
-      const twelfthFretScale = 1 - (1 / Math.pow(2, 12 / 12));
+      // Real guitar spacing, normalised so the visible final fret fills this neck.
+      const visibleFrets = visibleFretCount();
+      const visibleScale = 1 - (1 / Math.pow(2, visibleFrets / 12));
       const scale = 1 - (1 / Math.pow(2, fret / 12));
-      return (scale / twelfthFretScale) * 100;
+      return (scale / visibleScale) * 100;
     }
 
     function displayRowForString(stringIndex) {
@@ -1726,7 +1748,9 @@
       const nut = makeDiv('nut', fretboard);
       nut.style.left = `${pctXForFretWire(0)}%`;
 
-      for (let f = 1; f <= 12; f++) {
+      const visibleFrets = visibleFretCount();
+
+      for (let f = 1; f <= visibleFrets; f++) {
         const fret = makeDiv('fret', fretboard);
         fret.style.left = `${pctXForFretWire(f)}%`;
 
@@ -1735,17 +1759,19 @@
         label.style.left = `${pctXForFretWire(f - 0.5)}%`;
       }
 
-      [3, 5, 7, 9].forEach(f => {
+      [3, 5, 7, 9].filter(f => f <= visibleFrets).forEach(f => {
         const marker = makeDiv('marker', fretboard);
         marker.style.left = `${pctXForFret(f)}%`;
       });
 
-      const marker12a = makeDiv('marker double-a', fretboard);
-      marker12a.style.left = `${pctXForFret(12)}%`;
-      marker12a.style.top = `${pctYForString(3)}%`; // 3rd string
-      const marker12b = makeDiv('marker double-b', fretboard);
-      marker12b.style.left = `${pctXForFret(12)}%`;
-      marker12b.style.top = `${pctYForString(2)}%`; // 4th string
+      if (visibleFrets >= 12) {
+        const marker12a = makeDiv('marker double-a', fretboard);
+        marker12a.style.left = `${pctXForFret(12)}%`;
+        marker12a.style.top = `${pctYForString(3)}%`; // 3rd string
+        const marker12b = makeDiv('marker double-b', fretboard);
+        marker12b.style.left = `${pctXForFret(12)}%`;
+        marker12b.style.top = `${pctYForString(2)}%`; // 4th string
+      }
     }
 
     function positionFor(note) {
@@ -1770,7 +1796,7 @@
     function randomNote() {
       return {
         string: Math.floor(Math.random() * 6),
-        fret: Math.floor(Math.random() * 13)
+        fret: Math.floor(Math.random() * (randomFretLimit() + 1))
       };
     }
 
@@ -1779,7 +1805,7 @@
 
       for (let string = 0; string < 6; string++) {
         const fret = midi - stringTunings[string];
-        if (fret >= 0 && fret <= 12) positions.push({ string, fret });
+        if (fret >= 0 && fret <= randomFretLimit()) positions.push({ string, fret });
       }
 
       return positions;
@@ -1836,7 +1862,7 @@
       if (!bestShapes.length) {
         return chordType.intervals.map((interval, index) => ({
           string: 5 - index,
-          fret: Math.min(12, interval),
+          fret: Math.min(randomFretLimit(), interval),
           role: chordType.roles[index],
           interval
         }));
@@ -2390,6 +2416,7 @@
       console.assert(majorSecondInversion.roles.join(',') === '5,1,3', 'Major 2nd inversion labels should reveal as 5,1,3');
       console.assert(averagePercent([{ percent: 50 }, { percent: 100 }]) === 75, 'Average percent should calculate rolling averages');
       console.assert(daysBetween('2026-05-17', '2026-05-18') === 1, 'Practice streak should recognise consecutive days');
+      console.assert(visibleFretCount() === 12 || visibleFretCount() === 7, 'Visible fret count should be either full neck or mobile teaching zone');
     }
 
     runStartupChecks();
