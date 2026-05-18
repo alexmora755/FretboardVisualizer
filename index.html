@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guitar Interval Trainer</title>
+  <style>
+    :root {
+      --bg: #111827;
+      --panel: #1f2937;
+      --panel-soft: #273449;
+      --text: #f9fafb;
+      --muted: #a7b0c0;
+      --accent: #f59e0b;
+      --accent-2: #38bdf8;
+      --good: #34d399;
+      --bad: #fb7185;
+      --wood-light: #c58a4b;
+      --wood-dark: #8b5a2b;
+      --fret: rgba(255,255,255,0.42);
+      --string: rgba(255,255,255,0.68);
+      --arrow: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 32rem),
+        radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.14), transparent 28rem),
+        var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.055em;
+    }
+
+    .intro {
+      margin: 0;
+      color: var(--muted);
+      max-width: 720px;
+      font-size: 1rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      align-items: center;
+      position: relative;
+    }
+
+    .settings-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: min(360px, calc(100vw - 32px));
+      display: none;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      background: rgba(17,24,39,0.96);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 22px;
+      padding: 14px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.42);
+      z-index: 20;
+      backdrop-filter: blur(10px);
+    }
+
+    .settings-panel.open {
+      display: grid;
+    }
+
+    .setting-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .setting-row label {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .settings-panel select,
+    .settings-panel button {
+      width: 100%;
+    }
+
+    .mute-toggle.active {
+      background: var(--bad);
+      color: #3b0611;
+    }
+
+    button, select {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 16px;
+      font-weight: 800;
+      color: #101827;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.25);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.86;
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+    }
+
+    select {
+      background: var(--panel-soft);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: none;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 28px;
+      padding: 18px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.32);
+      overflow: hidden;
+    }
+
+    .fretboard-wrap {
+      position: relative;
+      padding: 28px 24px 34px 90px;
+      background: linear-gradient(135deg, var(--wood-light), var(--wood-dark));
+      border-radius: 22px;
+      box-shadow: inset 0 0 34px rgba(0,0,0,0.28);
+      overflow: hidden;
+    }
+
+    .fretboard-wrap::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 9px),
+        linear-gradient(90deg, rgba(0,0,0,0.12), transparent 25%, transparent 75%, rgba(0,0,0,0.20));
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+    }
+
+    .fretboard {
+      position: relative;
+      height: 310px;
+      border-radius: 14px;
+      z-index: 1;
+    }
+
+    .string, .fret, .nut, .marker, .note, .fret-label, .string-label {
+      position: absolute;
+    }
+
+    .string {
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--string);
+      transform: translateY(-50%);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.28);
+    }
+
+    .string.gauge-6 { height: 5px; }
+    .string.gauge-5 { height: 4.2px; }
+    .string.gauge-4 { height: 3.4px; }
+    .string.gauge-3 { height: 2.7px; }
+    .string.gauge-2 { height: 2.1px; }
+    .string.gauge-1 { height: 1.5px; }
+
+    .fret {
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--fret);
+      transform: translateX(-50%);
+      border-radius: 999px;
+      box-shadow: 1px 0 4px rgba(0,0,0,0.2);
+    }
+
+    .nut {
+      top: 0;
+      bottom: 0;
+      width: 9px;
+      background: rgba(245,245,245,0.92);
+      transform: translateX(-50%);
+      border-radius: 999px;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.38);
+    }
+
+    .marker {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .marker.double-a,
+    .marker.double-b {
+      top: auto;
+    }
+
+    .note {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 950;
+      transform: translate(-50%, -50%);
+      border: 3px solid rgba(255,255,255,0.92);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      z-index: 5;
+    }
+
+    .note.start {
+      background: var(--accent);
+      color: #111827;
+    }
+
+    .note.end {
+      background: var(--accent-2);
+      color: #082f49;
+    }
+
+    .note.chord {
+      background: var(--accent-2);
+      color: #082f49;
+    }
+
+    .note.chord.revealed-root {
+      background: var(--accent);
+      color: #111827;
+    }
+
+    .note.chord.revealed-tone {
+      background: var(--good);
+      color: #052e22;
+    }
+
+    svg.arrow-layer {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .fret-label {
+      bottom: -28px;
+      color: rgba(255,255,255,0.8);
+      font-size: 0.78rem;
+      transform: translateX(-50%);
+      font-weight: 700;
+    }
+
+    .string-label {
+      right: calc(100% + 8px);
+      min-width: 54px;
+      color: #111827;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(17,24,39,0.18);
+      font-size: 0.8rem;
+      transform: translateY(-50%);
+      font-weight: 950;
+      padding: 4px 8px;
+      border-radius: 999px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+      z-index: 3;
+    }
+
+    .game-bar {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      background: rgba(17,24,39,0.82);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      padding: 12px 14px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 1.55rem;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .stat.hidden-stat {
+      display: none;
+    }
+
+    .player-card {
+      background: linear-gradient(180deg, rgba(34,197,94,0.12), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .player-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .history-panel {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .sparkline {
+      width: 100%;
+      height: 42px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 6px;
+      overflow: visible;
+    }
+
+    .sparkline path {
+      fill: none;
+      stroke: var(--good);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sparkline .sparkline-empty {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .session-history {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      gap: 4px;
+      min-height: 28px;
+    }
+
+    .session-chip {
+      border-radius: 9px;
+      padding: 5px 2px;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 900;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+
+    .session-chip.good { background: rgba(52,211,153,0.28); }
+    .session-chip.ok { background: rgba(245,158,11,0.28); }
+    .session-chip.rough { background: rgba(251,113,133,0.28); }
+
+    .player-metric {
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .player-metric-label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .player-metric-value {
+      margin-top: 4px;
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .timer-shell {
+      height: 8px;
+      margin-top: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      width: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.18s linear;
+    }
+
+    .answer-panel {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 0.7fr 1.8fr;
+      gap: 14px;
+    }
+
+    .prompt, .result {
+      background: rgba(17,24,39,0.82);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 12px;
+    }
+
+    .prompt h2, .result h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .big-answer {
+      margin: 0;
+      font-size: clamp(1.35rem, 2.5vw, 2.2rem);
+      font-weight: 950;
+      letter-spacing: -0.045em;
+    }
+
+    .details {
+      color: var(--muted);
+      margin: 6px 0 0;
+      line-height: 1.35;
+      font-size: 0.92rem;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .choice-grid button {
+      padding: 8px 6px;
+      min-height: 42px;
+      font-size: 0.82rem;
+      background: var(--panel-soft);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: none;
+    }
+
+    .choice-grid button.correct {
+      background: var(--good);
+      color: #052e22;
+    }
+
+    .choice-grid button.wrong {
+      background: var(--bad);
+      color: #3b0611;
+    }
+
+    
+
+    .more-stats-button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px 12px;
+      box-shadow: none;
+    }
+
+    .stats-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(2,6,23,0.68);
+      backdrop-filter: blur(8px);
+      z-index: 48;
+    }
+
+    .stats-modal.show {
+      display: grid;
+    }
+
+    .stats-modal-card {
+      width: min(620px, 100%);
+      max-height: min(760px, calc(100vh - 48px));
+      overflow: auto;
+      background: rgba(17,24,39,0.96);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 26px;
+      padding: 22px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.5);
+    }
+
+    .stats-modal-card h2 {
+      margin: 0 0 8px;
+      font-size: clamp(1.5rem, 3vw, 2.3rem);
+      letter-spacing: -0.04em;
+    }
+
+    .stats-modal-card p {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 8px 0 14px;
+    }
+
+    .modal-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .summary-panel {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(2,6,23,0.68);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+    }
+
+    .summary-panel.show {
+      display: grid;
+    }
+
+    .summary-card {
+      width: min(520px, 100%);
+      background: rgba(17,24,39,0.96);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 26px;
+      padding: 22px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.5);
+    }
+
+    .summary-card h2 {
+      margin: 0 0 8px;
+      font-size: clamp(1.5rem, 3vw, 2.3rem);
+      letter-spacing: -0.04em;
+    }
+
+    .summary-card p {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 8px 0 0;
+    }
+
+    .summary-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .hidden-answer .big-answer,
+    .hidden-answer .details {
+      filter: blur(8px);
+      user-select: none;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 999px;
+      padding: 7px 10px;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .dot.end-dot {
+      background: var(--accent-2);
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      header { align-items: start; flex-direction: column; }
+      .controls { justify-content: flex-start; width: 100%; }
+      .settings-panel { left: 0; right: auto; }
+      .fretboard-wrap { padding-left: 88px; padding-right: 10px; }
+      .game-bar { grid-template-columns: 1fr; }
+      .answer-panel { grid-template-columns: 1fr; }
+      .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .note { width: 34px; height: 34px; font-size: 0.85rem; }
+      .modal-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (min-width: 1020px) {
+      .choice-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 761px) and (max-height: 900px) {
+      body {
+        padding: 14px;
+      }
+
+      header {
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        font-size: clamp(1.8rem, 3.2vw, 2.8rem);
+      }
+
+      .intro {
+        font-size: 0.92rem;
+      }
+
+      .card {
+        padding: 14px;
+        border-radius: 24px;
+      }
+
+      .fretboard-wrap {
+        padding-top: 20px;
+        padding-bottom: 28px;
+      }
+
+      .fretboard {
+        height: 270px;
+      }
+
+      .legend {
+        margin-top: 10px;
+        font-size: 0.86rem;
+      }
+
+      .answer-panel {
+        margin-top: 10px;
+        gap: 10px;
+      }
+
+      .game-bar {
+        margin-top: 10px;
+        gap: 8px;
+      }
+
+      .prompt,
+      .result,
+      .stat {
+        padding: 10px;
+      }
+
+      .choice-grid button {
+        min-height: 36px;
+        padding: 7px 6px;
+        font-size: 0.84rem;
+      }
+
+      .player-grid {
+        gap: 7px;
+        margin-top: 7px;
+      }
+
+      .player-metric {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1 id="pageTitle">Interval Trainer</h1>
+        <p id="introText" class="intro">Find the interval from the gold note to the blue note. Direction matters: the same two frets can wear a different musical hat depending on which note is home base.</p>
+      </div>
+      <div class="controls">
+        <button id="modeButton" class="secondary">🎸 Interval trainer</button>
+        <button id="settingsButton" class="secondary" aria-expanded="false" aria-controls="settingsPanel">⚙ Settings</button>
+        <button id="startGame">Start game</button>
+
+        <div id="settingsPanel" class="settings-panel" aria-label="Game settings">
+
+          <div id="generalSettingsGroup">
+            <div class="setting-row">
+              <label for="orientationSelect">String orientation</label>
+              <select id="orientationSelect" aria-label="String orientation">
+                <option value="lowTop">6th string at top</option>
+                <option value="highTop" selected>1st string at top</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="fretSpanSelect">Maximum fret distance</label>
+              <select id="fretSpanSelect" aria-label="Maximum fret distance">
+                <option value="3">Max 3 frets apart</option>
+                <option value="5">Max 5 frets apart</option>
+                <option value="7">Max 7 frets apart</option>
+                <option value="12">Any fret distance</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="questionCountSelect">Game length</label>
+              <select id="questionCountSelect" aria-label="Number of questions">
+                <option value="5">5 questions</option>
+                <option value="10" selected>10 questions</option>
+                <option value="15">15 questions</option>
+                <option value="20">20 questions</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="timeLimitSelect">Time per question</label>
+              <select id="timeLimitSelect" aria-label="Seconds per question">
+                <option value="3">3 sec</option>
+                <option value="5" selected>5 sec</option>
+                <option value="8">8 sec</option>
+                <option value="10">10 sec</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="intervalSettingsGroup">
+            <div class="setting-row">
+              <label for="rangeSelect">Interval range</label>
+              <select id="rangeSelect" aria-label="Interval range">
+                <option value="12">Within one octave</option>
+                <option value="24">Up to two octaves</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="directionSelect">Interval direction</label>
+              <select id="directionSelect" aria-label="Interval direction">
+                <option value="ascending">Ascending only</option>
+                <option value="descending">Descending only</option>
+                <option value="both" selected>Both directions</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="chordSettingsGroup" style="display:none;">
+            <div class="setting-row">
+              <label for="chordComplexitySelect">Chord complexity</label>
+              <select id="chordComplexitySelect" aria-label="Chord complexity">
+                <option value="both" selected>Dyads + triads</option>
+                <option value="dyads">Dyads only</option>
+                <option value="triads">Triads only</option>
+                <option value="sevenths">7th chords only</option>
+                <option value="triadsSevenths">Triads + 7ths</option>
+                <option value="all">All chord types</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="inversionSelect">Inversions</label>
+              <select id="inversionSelect" aria-label="Chord inversions">
+                <option value="all" selected>All inversions</option>
+                <option value="rootOnly">Root position only</option>
+                <option value="includeFirst">Root + 1st inversion</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="alteredTriadsSelect">Altered triads</label>
+              <select id="alteredTriadsSelect" aria-label="Altered triads">
+                <option value="standard" selected>Major/minor only</option>
+                <option value="includeAltered">Include diminished + augmented</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="muteButton" class="secondary mute-toggle" type="button">Sound: On</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="fretboard-wrap">
+        <div id="fretboard" class="fretboard" aria-label="Guitar fretboard from open string to twelfth fret">
+          <svg id="arrowLayer" class="arrow-layer" aria-hidden="true">
+            <defs>
+              <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M1,1 L5,3 L1,5 Z" fill="var(--arrow)"></path>
+              </marker>
+            </defs>
+            <path id="arrowPath" d="" fill="none" stroke="var(--arrow)" stroke-width="3" stroke-linecap="round" opacity="0.96"></path>
+            <polyline id="arrowMid" points="" fill="none" stroke="transparent" stroke-width="3" marker-mid="url(#arrowHead)"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="pill"><span class="dot"></span>Base note</span>
+        <span class="pill"><span class="dot end-dot"></span>Target note</span>
+        <span class="pill">Chord trainer: all dots are blue until revealed</span>
+        <span class="pill">Standard tuning: E A D G B E</span>
+      </div>
+
+      <div class="answer-panel">
+        <div id="answerBox" class="prompt hidden-answer">
+          <h2>Answer</h2>
+          <p id="answer" class="big-answer">Perfect fourth</p>
+          <p id="details" class="details">5 semitones from C to F.</p>
+        </div>
+
+        <div class="result">
+          <h2>Pick the interval</h2>
+          <div id="choices" class="choice-grid"></div>
+        </div>
+      </div>
+
+      <div class="game-bar">
+        <div class="stat">
+          <div class="stat-label">Question</div>
+          <div id="questionStat" class="stat-value">Practice</div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-label">Score</div>
+          <div id="scoreStat" class="stat-value">0</div>
+        </div>
+
+        <div class="stat hidden-stat">
+          <div class="stat-label">Time</div>
+          <div id="timeStat" class="stat-value">∞</div>
+          <div class="timer-shell"><div id="timerFill" class="timer-fill"></div></div>
+        </div>
+
+        <div class="stat hidden-stat">
+          <div class="stat-label">Streak</div>
+          <div id="streakStat" class="stat-value">0</div>
+        </div>
+
+        <div class="stat player-card">
+          <div class="stat-label">Player stats</div>
+
+          <div class="player-grid">
+            <div class="player-metric">
+              <div class="player-metric-label">Practice streak</div>
+              <div id="practiceStreakMainStat" class="player-metric-value">0 days</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Accuracy</div>
+              <div id="accuracyStat" class="player-metric-value">0%</div>
+            </div>
+          </div>
+
+          <button id="moreStatsButton" class="secondary more-stats-button" type="button">More stats</button>
+        </div>
+      </div>
+
+      <div id="statsModal" class="stats-modal" role="dialog" aria-modal="true" aria-labelledby="statsModalTitle">
+        <div class="stats-modal-card">
+          <h2 id="statsModalTitle">Player stats</h2>
+          <p>Your last 10 game sessions, rolling averages, and the little troublemakers that need more practice.</p>
+
+          <div class="modal-stats-grid">
+            <div class="player-metric">
+              <div class="player-metric-label">Best score</div>
+              <div id="modalBestScoreStat" class="player-metric-value">0%</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Accuracy</div>
+              <div id="modalAccuracyStat" class="player-metric-value">0%</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Sessions</div>
+              <div id="sessionsStat" class="player-metric-value">0</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Weak spot</div>
+              <div id="weakSpotStat" class="player-metric-value">—</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Rolling avg</div>
+              <div id="rollingAvgStat" class="player-metric-value">0%</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Avg guess</div>
+              <div id="avgGuessStat" class="player-metric-value">—</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Trend</div>
+              <div id="trendStat" class="player-metric-value">—</div>
+            </div>
+
+            <div class="player-metric">
+              <div class="player-metric-label">Practice streak</div>
+              <div id="practiceStreakStat" class="player-metric-value">0 days</div>
+            </div>
+          </div>
+
+          <div class="history-panel">
+            <svg id="progressSparkline" class="sparkline" viewBox="0 0 220 42" role="img" aria-label="Last 10 session score trend"></svg>
+            <div id="sessionHistory" class="session-history" aria-label="Last 10 sessions"></div>
+          </div>
+
+          <div class="summary-actions">
+            <button id="closeStatsButton" class="secondary" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="summaryPanel" class="summary-panel" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+        <div class="summary-card">
+          <h2 id="summaryTitle">Nice round!</h2>
+          <p id="summaryText">You scored 0 out of 0.</p>
+          <p id="summaryTip">Try another round when you're ready.</p>
+          <div class="summary-actions">
+            <button id="playAgain">Play again</button>
+            <button id="summaryPractice" class="secondary">Back to practice</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const fretboard = document.getElementById('fretboard');
+    const arrowPath = document.getElementById('arrowPath');
+    const arrowMid = document.getElementById('arrowMid');
+    const answerBox = document.getElementById('answerBox');
+    const answer = document.getElementById('answer');
+    const details = document.getElementById('details');
+    const choices = document.getElementById('choices');
+    const pageTitle = document.getElementById('pageTitle');
+    const introText = document.getElementById('introText');
+    const modeButton = document.getElementById('modeButton');
+    const settingsButton = document.getElementById('settingsButton');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const muteButton = document.getElementById('muteButton');
+    let trainerMode = 'intervals';
+    const rangeSelect = document.getElementById('rangeSelect');
+    const fretSpanSelect = document.getElementById('fretSpanSelect');
+    const orientationSelect = document.getElementById('orientationSelect');
+    const directionSelect = document.getElementById('directionSelect');
+    const questionCountSelect = document.getElementById('questionCountSelect');
+    const timeLimitSelect = document.getElementById('timeLimitSelect');
+    const intervalSettingsGroup = document.getElementById('intervalSettingsGroup');
+    const chordSettingsGroup = document.getElementById('chordSettingsGroup');
+    const chordComplexitySelect = document.getElementById('chordComplexitySelect');
+    const inversionSelect = document.getElementById('inversionSelect');
+    const alteredTriadsSelect = document.getElementById('alteredTriadsSelect');
+    const startGameButton = document.getElementById('startGame');
+    
+    const questionStat = document.getElementById('questionStat');
+    const scoreStat = document.getElementById('scoreStat');
+    const timeStat = document.getElementById('timeStat');
+    const streakStat = document.getElementById('streakStat');
+    const timerFill = document.getElementById('timerFill');
+    const summaryPanel = document.getElementById('summaryPanel');
+    const summaryTitle = document.getElementById('summaryTitle');
+    const summaryText = document.getElementById('summaryText');
+    const summaryTip = document.getElementById('summaryTip');
+    const playAgainButton = document.getElementById('playAgain');
+    const summaryPracticeButton = document.getElementById('summaryPractice');
+
+    const practiceStreakMainStat = document.getElementById('practiceStreakMainStat');
+    const accuracyStat = document.getElementById('accuracyStat');
+    const moreStatsButton = document.getElementById('moreStatsButton');
+    const statsModal = document.getElementById('statsModal');
+    const closeStatsButton = document.getElementById('closeStatsButton');
+    const modalBestScoreStat = document.getElementById('modalBestScoreStat');
+    const modalAccuracyStat = document.getElementById('modalAccuracyStat');
+    const sessionsStat = document.getElementById('sessionsStat');
+    // Player history/stat elements
+    const weakSpotStat = document.getElementById('weakSpotStat');
+    const rollingAvgStat = document.getElementById('rollingAvgStat');
+    const avgGuessStat = document.getElementById('avgGuessStat');
+    const trendStat = document.getElementById('trendStat');
+    const practiceStreakStat = document.getElementById('practiceStreakStat');
+    const progressSparkline = document.getElementById('progressSparkline');
+    const sessionHistory = document.getElementById('sessionHistory');
+
+    const stringTunings = [40, 45, 50, 55, 59, 64]; // Low E to high E, MIDI notes
+    const stringNames = ['E', 'A', 'D', 'G', 'B', 'E'];
+    const noteNames = ['C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F', 'F♯/G♭', 'G', 'G♯/A♭', 'A', 'A♯/B♭', 'B'];
+
+    const intervals = [
+      'Unison',
+      'Minor 2nd',
+      'Major 2nd',
+      'Minor 3rd',
+      'Major 3rd',
+      'Perfect 4th',
+      'Tritone',
+      'Perfect 5th',
+      'Minor 6th',
+      'Major 6th',
+      'Minor 7th',
+      'Major 7th',
+      'Octave',
+      'Minor 9th',
+      'Major 9th',
+      'Minor 10th',
+      'Major 10th',
+      'Perfect 11th',
+      'Augmented 11th',
+      'Perfect 12th',
+      'Minor 13th',
+      'Major 13th',
+      'Minor 14th',
+      'Major 14th',
+      'Two octaves'
+    ];
+
+    function intervalLabel(diff) {
+      // Convert the target note into its interval relationship from the base note.
+      // This means A down to E is treated as a Perfect 5th, not a "descending 4th".
+      const pitchClassDistance = ((diff % 12) + 12) % 12;
+      const intervalIndex = pitchClassDistance === 0 ? 12 : pitchClassDistance;
+      return intervals[intervalIndex] || `${intervalIndex} semitones`;
+    }
+
+    function intervalOptions() {
+      const poolMax = Number(rangeSelect.value);
+      const optionMax = poolMax > 12 ? 12 : poolMax;
+      return intervals.slice(1, optionMax + 1);
+    }
+
+    function noteOptions() {
+      return noteNames;
+    }
+
+    const chordTypes = [
+      { label: 'Perfect 5th dyad', intervals: [0, 7], roles: ['1', '5'] },
+      { label: 'Major 3rd dyad', intervals: [0, 4], roles: ['1', '3'] },
+      { label: 'Minor 3rd dyad', intervals: [0, 3], roles: ['1', '♭3'] },
+      { label: 'Major 6th dyad', intervals: [0, 9], roles: ['1', '6'] },
+      { label: 'Minor 6th dyad', intervals: [0, 8], roles: ['1', '♭6'] },
+      { label: 'Octave dyad', intervals: [0, 12], roles: ['1', '8'] },
+      { label: 'Major triad', intervals: [0, 4, 7], roles: ['1', '3', '5'] },
+      { label: 'Major triad, 1st inversion', intervals: [0, 3, 8], roles: ['3', '5', '1'] },
+      { label: 'Major triad, 2nd inversion', intervals: [0, 5, 9], roles: ['5', '1', '3'] },
+      { label: 'Minor triad', intervals: [0, 3, 7], roles: ['1', '♭3', '5'] },
+      { label: 'Minor triad, 1st inversion', intervals: [0, 4, 9], roles: ['♭3', '5', '1'] },
+      { label: 'Minor triad, 2nd inversion', intervals: [0, 5, 8], roles: ['5', '1', '♭3'] },
+      { label: 'Diminished triad', intervals: [0, 3, 6], roles: ['1', '♭3', '♭5'], altered: true },
+      { label: 'Augmented triad', intervals: [0, 4, 8], roles: ['1', '3', '♯5'], altered: true },
+      { label: 'Dominant 7th', intervals: [0, 4, 7, 10], roles: ['1', '3', '5', '♭7'], seventh: true },
+      { label: 'Major 7th', intervals: [0, 4, 7, 11], roles: ['1', '3', '5', '7'], seventh: true },
+      { label: 'Minor 7th', intervals: [0, 3, 7, 10], roles: ['1', '♭3', '5', '♭7'], seventh: true },
+      { label: 'Minor 7 flat 5', intervals: [0, 3, 6, 10], roles: ['1', '♭3', '♭5', '♭7'], seventh: true }
+    ];
+
+    function chordOptions() {
+      const visibleChords = current?.mode === 'chords'
+        ? chordTypes.filter(chord => chord.intervals.length === current.chordIntervals.length)
+        : chordTypes;
+
+      return visibleChords.map(chord => chord.label);
+    }
+
+    
+
+    function currentCorrectAnswer() {
+      if (current.mode === 'notes') return current.notePos.name;
+      if (current.mode === 'chords') return current.chordLabel;
+      return intervalLabel(current.diff);
+    }
+
+    function modeTitle() {
+      if (trainerMode === 'notes') return 'Pick the note';
+      if (trainerMode === 'chords') return 'Pick the chord';
+      return 'Pick the interval';
+    }
+
+    function updateSettingsVisibility() {
+      intervalSettingsGroup.style.display = trainerMode === 'intervals' ? 'block' : 'none';
+      chordSettingsGroup.style.display = trainerMode === 'chords' ? 'block' : 'none';
+    }
+
+    function applyModeUI() {
+      const copy = {
+        intervals: {
+          title: 'Interval Trainer',
+          intro: 'Find the interval from the gold note to the blue note. Direction matters: the same two frets can wear a different musical hat depending on which note is home base.',
+          button: '🎸 Mode: Interval trainer'
+        },
+        notes: {
+          title: 'Note Trainer',
+          intro: 'Learn the fretboard by identifying notes anywhere on the neck. One dot. One decision. Tiny moments of enlightenment.',
+          button: '🎵 Mode: Note trainer'
+        },
+        chords: {
+          title: 'Chord Trainer',
+          intro: 'Recognise dyads and triads by their shape. The dots show the chord; your job is to name the structure hiding inside it.',
+          button: '🎹 Mode: Chord trainer'
+        }
+      };
+
+      const currentCopy = copy[trainerMode] || copy.intervals;
+      pageTitle.textContent = currentCopy.title;
+      introText.textContent = currentCopy.intro;
+      modeButton.textContent = currentCopy.button;
+      updateSettingsVisibility();
+    }
+
+    let current = null;
+    let gameActive = false;
+    let acceptingAnswers = true;
+    let score = 0;
+    let streak = 0;
+    let questionNumber = 0;
+    let totalQuestions = 10;
+    let timeLimit = 5;
+    let timeLeft = 5;
+    let timerId = null;
+    let practiceAdvanceId = null;
+    let questionStartedAt = 0;
+    let audioContext = null;
+    let muted = false;
+    const roundHistory = [];
+
+    const STORAGE_KEY = 'guitarTrainerStats';
+
+    const playerStats = loadStats();
+
+    function pctXForFret(fret) {
+      if (fret === 0) return pctXForFretWire(0);
+      const left = pctXForFretWire(fret - 1);
+      const right = pctXForFretWire(fret);
+      return (left + right) / 2;
+    }
+
+    function pctXForFretWire(fret) {
+      // Real guitar spacing, normalised so fret 12 fills this visible neck.
+      // On a real guitar, the 12th fret is halfway along the full scale length.
+      const twelfthFretScale = 1 - (1 / Math.pow(2, 12 / 12));
+      const scale = 1 - (1 / Math.pow(2, fret / 12));
+      return (scale / twelfthFretScale) * 100;
+    }
+
+    function displayRowForString(stringIndex) {
+      return orientationSelect.value === 'highTop' ? 5 - stringIndex : stringIndex;
+    }
+
+    function pctYForString(stringIndex) {
+      return 8 + displayRowForString(stringIndex) * (84 / 5);
+    }
+
+    function makeDiv(className, parent) {
+      const div = document.createElement('div');
+      div.className = className;
+      parent.appendChild(div);
+      return div;
+    }
+
+    function initAudio() {
+      if (muted) return;
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') audioContext.resume();
+    }
+
+    function pluck(freq, startTime, duration, volume, type = 'sine') {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const filter = audioContext.createBiquadFilter();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.996, startTime + duration);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1400, startTime);
+      filter.frequency.exponentialRampToValueAtTime(520, startTime + duration);
+      filter.Q.setValueAtTime(0.7, startTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.03);
+    }
+
+    function playTone(type = 'tap') {
+      if (muted || !audioContext) return;
+
+      const now = audioContext.currentTime;
+
+      if (type === 'correct') {
+        pluck(392, now, 0.18, 0.035, 'sine');
+        pluck(523.25, now + 0.035, 0.20, 0.032, 'sine');
+        pluck(659.25, now + 0.07, 0.22, 0.03, 'sine');
+        return;
+      }
+
+      if (type === 'wrong' || type === 'timeout') {
+        pluck(261.63, now, 0.22, 0.035, 'triangle');
+        pluck(196, now + 0.045, 0.24, 0.03, 'triangle');
+        return;
+      }
+
+      if (type === 'start') {
+        pluck(329.63, now, 0.16, 0.032, 'sine');
+        pluck(440, now + 0.035, 0.18, 0.03, 'sine');
+        return;
+      }
+
+      if (type === 'finish') {
+        pluck(392, now, 0.18, 0.032, 'sine');
+        pluck(493.88, now + 0.045, 0.20, 0.03, 'sine');
+        pluck(659.25, now + 0.09, 0.24, 0.028, 'sine');
+        return;
+      }
+
+      pluck(440, now, 0.08, 0.02, 'sine');
+    }
+
+    function loadStats() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+        return {
+          sessions: stored?.sessions || 0,
+          bestPercent: stored?.bestPercent || 0,
+          totalCorrect: stored?.totalCorrect || 0,
+          totalAnswered: stored?.totalAnswered || 0,
+          totalResponseMs: stored?.totalResponseMs || 0,
+          misses: stored?.misses || {},
+          history: Array.isArray(stored?.history) ? stored.history.slice(-10) : [],
+          practiceStreak: stored?.practiceStreak || 0,
+          lastPracticeDate: stored?.lastPracticeDate || null
+        };
+      } catch {
+        return {
+          sessions: 0,
+          bestPercent: 0,
+          totalCorrect: 0,
+          totalAnswered: 0,
+          totalResponseMs: 0,
+          misses: {},
+          history: [],
+          practiceStreak: 0,
+          lastPracticeDate: null
+        };
+      }
+    }
+
+    function saveStats() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(playerStats));
+    }
+
+    function weakestInterval() {
+      const entries = Object.entries(playerStats.misses);
+      if (!entries.length) return '—';
+
+      entries.sort((a, b) => b[1] - a[1]);
+      return entries[0][0];
+    }
+
+    function averagePercent(sessions) {
+      if (!sessions.length) return 0;
+      return Math.round(sessions.reduce((sum, item) => sum + item.percent, 0) / sessions.length);
+    }
+
+    function dateStamp(date = new Date()) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    function daysBetween(dateStampA, dateStampB) {
+      const a = new Date(`${dateStampA}T00:00:00`);
+      const b = new Date(`${dateStampB}T00:00:00`);
+      return Math.round((b - a) / 86400000);
+    }
+
+    function updatePracticeStreak() {
+      const today = dateStamp();
+      const lastDate = playerStats.lastPracticeDate;
+
+      if (!lastDate) {
+        playerStats.practiceStreak = 1;
+      } else if (lastDate === today) {
+        playerStats.practiceStreak = Math.max(1, playerStats.practiceStreak || 1);
+      } else if (daysBetween(lastDate, today) === 1) {
+        playerStats.practiceStreak = (playerStats.practiceStreak || 0) + 1;
+      } else {
+        playerStats.practiceStreak = 1;
+      }
+
+      playerStats.lastPracticeDate = today;
+    }
+
+    function trendLabel() {
+      const history = playerStats.history || [];
+      if (history.length < 4) return '—';
+
+      const midpoint = Math.floor(history.length / 2);
+      const early = averagePercent(history.slice(0, midpoint));
+      const recent = averagePercent(history.slice(midpoint));
+      const diff = recent - early;
+
+      if (diff > 0) return `+${diff}%`;
+      if (diff < 0) return `${diff}%`;
+      return 'Flat';
+    }
+
+    function drawSparkline() {
+      progressSparkline.innerHTML = '';
+      const history = playerStats.history || [];
+
+      if (!history.length) {
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', '10');
+        text.setAttribute('y', '26');
+        text.setAttribute('class', 'sparkline-empty');
+        text.textContent = 'Play a game to start tracking';
+        progressSparkline.appendChild(text);
+        return;
+      }
+
+      const width = 208;
+      const height = 30;
+      const xStep = history.length === 1 ? 0 : width / (history.length - 1);
+      const points = history.map((item, index) => {
+        const x = 6 + index * xStep;
+        const y = 6 + height - (item.percent / 100) * height;
+        return `${x},${y}`;
+      });
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', points.length === 1 ? `M ${points[0]} L ${points[0]}` : `M ${points.join(' L ')}`);
+      progressSparkline.appendChild(path);
+    }
+
+    function drawSessionHistory() {
+      sessionHistory.innerHTML = '';
+      const history = playerStats.history || [];
+
+      if (!history.length) {
+        const chip = document.createElement('div');
+        chip.className = 'session-chip';
+        chip.textContent = '—';
+        sessionHistory.appendChild(chip);
+        return;
+      }
+
+      history.forEach(item => {
+        const chip = document.createElement('div');
+        chip.className = `session-chip ${item.percent >= 80 ? 'good' : item.percent >= 50 ? 'ok' : 'rough'}`;
+        chip.textContent = item.percent;
+        chip.title = `${item.mode} • ${item.percent}% • ${item.avgSeconds}s avg`;
+        sessionHistory.appendChild(chip);
+      });
+    }
+
+    function updatePlayerCard() {
+      const accuracy = playerStats.totalAnswered
+        ? Math.round((playerStats.totalCorrect / playerStats.totalAnswered) * 100)
+        : 0;
+
+      const rollingAverage = averagePercent(playerStats.history || []);
+      const avgGuessSeconds = playerStats.totalAnswered && playerStats.totalResponseMs
+        ? (playerStats.totalResponseMs / playerStats.totalAnswered / 1000).toFixed(1)
+        : '—';
+
+      practiceStreakMainStat.textContent = `${playerStats.practiceStreak || 0} day${playerStats.practiceStreak === 1 ? '' : 's'}`;
+      accuracyStat.textContent = `${accuracy}%`;
+      modalBestScoreStat.textContent = `${playerStats.bestPercent}%`;
+      modalAccuracyStat.textContent = `${accuracy}%`;
+      sessionsStat.textContent = playerStats.sessions;
+      weakSpotStat.textContent = weakestInterval();
+      rollingAvgStat.textContent = `${rollingAverage}%`;
+      avgGuessStat.textContent = avgGuessSeconds === '—' ? '—' : `${avgGuessSeconds}s`;
+      trendStat.textContent = trendLabel();
+      practiceStreakStat.textContent = `${playerStats.practiceStreak || 0} day${playerStats.practiceStreak === 1 ? '' : 's'}`;
+      drawSparkline();
+      drawSessionHistory();
+    }
+
+    function updateStats() {
+      questionStat.textContent = gameActive ? `${questionNumber}/${totalQuestions}` : 'Practice';
+      scoreStat.textContent = score;
+      streakStat.textContent = streak;
+      timeStat.textContent = gameActive ? Math.ceil(timeLeft) : '∞';
+      timerFill.style.width = gameActive ? `${Math.max(0, (timeLeft / timeLimit) * 100)}%` : '100%';
+    }
+
+    function clearTimer() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+    }
+
+    function clearPracticeAdvance() {
+      if (practiceAdvanceId) {
+        clearTimeout(practiceAdvanceId);
+        practiceAdvanceId = null;
+      }
+    }
+
+    function startTimer() {
+      clearTimer();
+      timeLimit = Number(timeLimitSelect.value);
+      timeLeft = timeLimit;
+      updateStats();
+
+      timerId = setInterval(() => {
+        timeLeft -= 0.1;
+        updateStats();
+        if (timeLeft <= 0) handleTimeout();
+      }, 100);
+    }
+
+    function drawBoard() {
+      [...fretboard.querySelectorAll('.string, .fret, .nut, .marker, .note, .fret-label, .string-label')].forEach(el => el.remove());
+
+      for (let s = 0; s < 6; s++) {
+        const y = pctYForString(s);
+        const stringNumber = 6 - s;
+        const string = makeDiv(`string gauge-${stringNumber}`, fretboard);
+        string.style.top = `${y}%`;
+
+        const label = makeDiv('string-label', fretboard);
+        label.textContent = trainerMode === 'notes' || trainerMode === 'chords'
+          ? `${stringNumber}`
+          : `${stringNumber}: ${stringNames[s]}`;
+        label.style.top = `${y}%`;
+      }
+
+      const nut = makeDiv('nut', fretboard);
+      nut.style.left = `${pctXForFretWire(0)}%`;
+
+      for (let f = 1; f <= 12; f++) {
+        const fret = makeDiv('fret', fretboard);
+        fret.style.left = `${pctXForFretWire(f)}%`;
+
+        const label = makeDiv('fret-label', fretboard);
+        label.textContent = f;
+        label.style.left = `${pctXForFretWire(f - 0.5)}%`;
+      }
+
+      [3, 5, 7, 9].forEach(f => {
+        const marker = makeDiv('marker', fretboard);
+        marker.style.left = `${pctXForFret(f)}%`;
+      });
+
+      const marker12a = makeDiv('marker double-a', fretboard);
+      marker12a.style.left = `${pctXForFret(12)}%`;
+      marker12a.style.top = `${pctYForString(3)}%`; // 3rd string
+      const marker12b = makeDiv('marker double-b', fretboard);
+      marker12b.style.left = `${pctXForFret(12)}%`;
+      marker12b.style.top = `${pctYForString(2)}%`; // 4th string
+    }
+
+    function positionFor(note) {
+      return {
+        xPct: pctXForFret(note.fret),
+        yPct: pctYForString(note.string),
+        midi: stringTunings[note.string] + note.fret,
+        name: noteNames[(stringTunings[note.string] + note.fret) % 12]
+      };
+    }
+
+    function addNote(note, className, labelText) {
+      const pos = positionFor(note);
+      const div = makeDiv(`note ${className}`, fretboard);
+      div.textContent = labelText;
+      div.title = `${pos.name}, string ${6 - note.string}, fret ${note.fret}`;
+      div.style.left = `${pos.xPct}%`;
+      div.style.top = `${pos.yPct}%`;
+      return { div, pos };
+    }
+
+    function randomNote() {
+      return {
+        string: Math.floor(Math.random() * 6),
+        fret: Math.floor(Math.random() * 13)
+      };
+    }
+
+    function positionsForMidi(midi) {
+      const positions = [];
+
+      for (let string = 0; string < 6; string++) {
+        const fret = midi - stringTunings[string];
+        if (fret >= 0 && fret <= 12) positions.push({ string, fret });
+      }
+
+      return positions;
+    }
+
+    function cartesianProduct(arrays) {
+      return arrays.reduce((acc, currentArray) => {
+        const next = [];
+        acc.forEach(existing => {
+          currentArray.forEach(item => next.push([...existing, item]));
+        });
+        return next;
+      }, [[]]);
+    }
+
+    function chooseChordPositions(chordType) {
+      const maxFretSpan = Number(fretSpanSelect.value);
+      let bestShapes = [];
+
+      for (let attempt = 0; attempt < 160; attempt++) {
+        const bass = randomNote();
+        const bassMidi = stringTunings[bass.string] + bass.fret;
+        const targetMidis = chordType.intervals.map(interval => bassMidi + interval);
+        if (targetMidis[targetMidis.length - 1] > 76) continue;
+
+        const choicesForNotes = targetMidis.map((midi, index) =>
+          positionsForMidi(midi).map(position => ({
+            ...position,
+            role: chordType.roles[index],
+            interval: chordType.intervals[index]
+          }))
+        );
+        if (choicesForNotes.some(options => options.length === 0)) continue;
+
+        const combos = cartesianProduct(choicesForNotes)
+          .filter(combo => new Set(combo.map(note => `${note.string}-${note.fret}`)).size === combo.length)
+          .filter(combo => new Set(combo.map(note => note.string)).size === combo.length)
+          .map(combo => {
+            const frets = combo.map(note => note.fret);
+            const strings = combo.map(note => note.string);
+            const span = Math.max(...frets) - Math.min(...frets);
+            const stringSpread = Math.max(...strings) - Math.min(...strings);
+            const openPenalty = combo.filter(note => note.fret === 0).length * 0.8;
+            return { combo, span, score: span + stringSpread * 0.25 + openPenalty };
+          })
+          .filter(shape => shape.span <= maxFretSpan);
+
+        if (combos.length) {
+          bestShapes = combos.sort((a, b) => a.score - b.score).slice(0, 8);
+          break;
+        }
+      }
+
+      if (!bestShapes.length) {
+        return chordType.intervals.map((interval, index) => ({
+          string: 5 - index,
+          fret: Math.min(12, interval),
+          role: chordType.roles[index],
+          interval
+        }));
+      }
+
+      const picked = bestShapes[Math.floor(Math.random() * bestShapes.length)].combo;
+      return picked.sort((a, b) => b.string - a.string || a.fret - b.fret);
+    }
+
+    function randomChordChallenge() {
+      let availableChords = [...chordTypes];
+
+      if (chordComplexitySelect.value === 'dyads') {
+        availableChords = availableChords.filter(chord => chord.intervals.length === 2);
+      }
+
+      if (chordComplexitySelect.value === 'triads') {
+        availableChords = availableChords.filter(chord => chord.intervals.length === 3);
+      }
+
+      if (chordComplexitySelect.value === 'sevenths') {
+        availableChords = availableChords.filter(chord => chord.seventh);
+      }
+
+      if (chordComplexitySelect.value === 'triadsSevenths') {
+        availableChords = availableChords.filter(chord => chord.intervals.length === 3 || chord.seventh);
+      }
+
+      if (inversionSelect.value === 'rootOnly') {
+        availableChords = availableChords.filter(chord => !chord.label.includes('inversion'));
+      }
+
+      if (inversionSelect.value === 'includeFirst') {
+        availableChords = availableChords.filter(chord => !chord.label.includes('2nd inversion'));
+      }
+
+      if (alteredTriadsSelect.value === 'standard') {
+        availableChords = availableChords.filter(chord => !chord.altered);
+      }
+
+      if (!availableChords.length) {
+        availableChords = chordTypes.filter(chord => chord.intervals.length === 3 && !chord.altered);
+      }
+
+      const chordType = availableChords[Math.floor(Math.random() * availableChords.length)];
+      const notes = chooseChordPositions(chordType);
+
+      current = {
+        mode: 'chords',
+        chordLabel: chordType.label,
+        chordIntervals: chordType.intervals,
+        chordNotes: notes
+      };
+      renderChallenge();
+    }
+
+    function randomChallenge() {
+      clearPracticeAdvance();
+      summaryPanel.classList.remove('show');
+
+      if (trainerMode === 'notes') {
+        const note = randomNote();
+        current = {
+          mode: 'notes',
+          note,
+          notePos: positionFor(note)
+        };
+        renderChallenge();
+        return;
+      }
+
+      if (trainerMode === 'chords') {
+        randomChordChallenge();
+        return;
+      }
+
+      const maxInterval = Number(rangeSelect.value);
+      const directionMode = directionSelect.value;
+      const maxFretSpan = Number(fretSpanSelect.value);
+      let start, end, startPos, endPos, diff, fretDistance;
+      let attempts = 0;
+
+      do {
+        start = randomNote();
+        end = randomNote();
+        startPos = positionFor(start);
+        endPos = positionFor(end);
+        diff = endPos.midi - startPos.midi;
+        fretDistance = Math.abs(end.fret - start.fret);
+        attempts++;
+      } while ((
+        diff === 0 ||
+        Math.abs(diff) > maxInterval ||
+        fretDistance > maxFretSpan ||
+        (directionMode === 'ascending' && diff < 0) ||
+        (directionMode === 'descending' && diff > 0) ||
+        (start.string === end.string && start.fret === end.fret)
+      ) && attempts < 900);
+
+      // fallback if random attempts are unlucky
+      if (diff === 0 || Math.abs(diff) > maxInterval || fretDistance > maxFretSpan) {
+        start = directionMode === 'descending' ? { string: 0, fret: 3 } : { string: 1, fret: 3 };
+        end = directionMode === 'descending' ? { string: 1, fret: 3 } : { string: 0, fret: 3 };
+        startPos = positionFor(start);
+        endPos = positionFor(end);
+        diff = endPos.midi - startPos.midi;
+      }
+
+      current = { mode: 'intervals', start, end, diff, startPos, endPos };
+      renderChallenge();
+    }
+
+    function renderChallenge() {
+      acceptingAnswers = true;
+      questionStartedAt = performance.now();
+      drawBoard();
+      arrowPath.setAttribute('d', '');
+      arrowMid.setAttribute('points', '');
+
+      document.querySelector('.result h2').textContent = modeTitle();
+
+      if (current.mode === 'notes') {
+        addNote(current.note, 'start', '?');
+        answer.textContent = current.notePos.name;
+        details.textContent = `String ${6 - current.note.string}, fret ${current.note.fret}.`;
+      } else if (current.mode === 'chords') {
+        current.chordNotes.forEach(note => {
+          addNote(note, 'chord', '');
+        });
+        answer.textContent = current.chordLabel;
+        const chordHint = current.chordNotes.length === 2
+          ? 'Two-note shape. Focus on the interval relationship between the notes.'
+          : current.chordNotes.length === 3
+            ? 'Three-note shape. Look for the root, 3rd, and 5th relationship.'
+            : 'Four-note shape. Look for the root, 3rd, 5th, and 7th relationship.';
+        details.textContent = chordHint;
+      } else {
+        const startNote = addNote(current.start, 'start', '1');
+        const endNote = addNote(current.end, 'end', '2');
+
+        requestAnimationFrame(() => drawArrow(startNote.div, endNote.div));
+
+        answer.textContent = intervalLabel(current.diff);
+        const directionText = current.diff < 0 ? 'below' : 'above';
+        const absDiff = Math.abs(current.diff);
+        details.textContent = `${current.endPos.name} is ${absDiff} semitone${absDiff === 1 ? '' : 's'} ${directionText} ${current.startPos.name}; from the base note, it functions as ${intervalLabel(current.diff)}.`;
+      }
+
+      answerBox.classList.add('hidden-answer');
+      renderChoices();
+      if (gameActive) startTimer();
+      updateStats();
+    }
+
+    function drawArrow(startEl, endEl) {
+      const boardRect = fretboard.getBoundingClientRect();
+      const a = startEl.getBoundingClientRect();
+      const b = endEl.getBoundingClientRect();
+
+      const x1 = a.left + a.width / 2 - boardRect.left;
+      const y1 = a.top + a.height / 2 - boardRect.top;
+      const x2 = b.left + b.width / 2 - boardRect.left;
+      const y2 = b.top + b.height / 2 - boardRect.top;
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+
+      // For near-vertical intervals, bow the arrow further outward so it remains visible.
+      const isMostlyVertical = Math.abs(dx) < 18;
+      // Start/end directly from note centres so the curve visually targets the notes.
+      // Tiny overlap is intentional and looks more natural than stopping short.
+      const overlap = isMostlyVertical ? 2 : 1;
+      const sx = x1 - (dx / len) * overlap;
+      const sy = y1 - (dy / len) * overlap;
+      const ex = x2 + (dx / len) * overlap;
+      const ey = y2 + (dy / len) * overlap;
+
+      const curve = isMostlyVertical
+        ? Math.min(110, Math.max(34, len * 0.42))
+        : Math.min(72, Math.max(8, len * 0.16));
+      const midX = (sx + ex) / 2;
+      const midY = (sy + ey) / 2;
+      const normalX = -dy / len;
+      const normalY = dx / len;
+      const cx = midX + normalX * curve;
+      const cy = midY + normalY * curve;
+
+      const pathData = `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`;
+      arrowPath.setAttribute('d', pathData);
+
+      // Invisible helper polyline so the arrowhead sits exactly on the curve
+      // and automatically rotates toward the target note.
+      const t = 0.5;
+      const midCurveX = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * cx + t * t * ex;
+      const midCurveY = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * cy + t * t * ey;
+
+      arrowMid.setAttribute(
+        'points',
+        `${sx},${sy} ${midCurveX},${midCurveY} ${ex},${ey}`
+      );
+    }
+
+    function renderChoices() {
+      choices.innerHTML = '';
+      const fixedOptions = current.mode === 'notes'
+        ? noteOptions()
+        : current.mode === 'chords'
+          ? chordOptions()
+          : intervalOptions();
+
+      fixedOptions.forEach(option => {
+        const btn = document.createElement('button');
+        btn.dataset.answer = option;
+        btn.textContent = option;
+        btn.addEventListener('click', () => handleAnswer(option, btn));
+        choices.appendChild(btn);
+      });
+    }
+
+    function revealChordIntervals() {
+      if (current.mode !== 'chords') return;
+
+      [...fretboard.querySelectorAll('.note.chord')].forEach((el, index) => {
+        const note = current.chordNotes[index];
+        el.textContent = note?.role || '?';
+
+        if (note?.role === '1' || note?.role === '8') {
+          el.classList.add('revealed-root');
+        } else {
+          el.classList.add('revealed-tone');
+        }
+      });
+    }
+
+    function handleAnswer(option, btn) {
+      if (!acceptingAnswers) return;
+      initAudio();
+      acceptingAnswers = false;
+      clearTimer();
+
+      const correct = currentCorrectAnswer();
+      const isCorrect = option === correct;
+
+      [...choices.querySelectorAll('button')].forEach(b => {
+        b.disabled = true;
+        if (b.dataset.answer === correct) b.classList.add('correct');
+      });
+
+      if (isCorrect) {
+        score++;
+        streak++;
+        playTone('correct');
+      } else {
+        streak = 0;
+        btn.classList.add('wrong');
+        playTone('wrong');
+      }
+
+      roundHistory.push({
+        interval: correct,
+        chosen: option,
+        correct: isCorrect,
+        timedOut: false,
+        responseMs: Math.max(0, Math.round(performance.now() - questionStartedAt))
+      });
+
+      answerBox.classList.remove('hidden-answer');
+
+      if (current.mode === 'chords') {
+        revealChordIntervals();
+      }
+      updateStats();
+      queueNextStep();
+    }
+
+    function handleTimeout() {
+      if (!acceptingAnswers || !gameActive) return;
+      acceptingAnswers = false;
+      clearTimer();
+      streak = 0;
+      playTone('timeout');
+
+      const correct = currentCorrectAnswer();
+      [...choices.querySelectorAll('button')].forEach(b => {
+        b.disabled = true;
+        if (b.dataset.answer === correct) b.classList.add('correct');
+      });
+
+      roundHistory.push({
+        interval: correct,
+        chosen: 'No answer',
+        correct: false,
+        timedOut: true,
+        responseMs: timeLimit * 1000
+      });
+
+      answerBox.classList.remove('hidden-answer');
+
+      if (current.mode === 'chords') {
+        revealChordIntervals();
+      }
+      updateStats();
+      queueNextStep();
+    }
+
+    function queueNextStep() {
+      if (gameActive) {
+        setTimeout(() => {
+          if (questionNumber >= totalQuestions) {
+            finishGame();
+          } else {
+            questionNumber++;
+            randomChallenge();
+          }
+        }, 900);
+        return;
+      }
+
+      practiceAdvanceId = setTimeout(() => {
+        randomChallenge();
+      }, 2500);
+    }
+
+    function startGame() {
+      if (gameActive) {
+        practiceChallenge();
+        return;
+      }
+
+      initAudio();
+      playTone('start');
+      clearTimer();
+      clearPracticeAdvance();
+      summaryPanel.classList.remove('show');
+      startGameButton.textContent = 'Back to practice';
+      startGameButton.classList.add('secondary');
+      gameActive = true;
+      acceptingAnswers = true;
+      score = 0;
+      streak = 0;
+      questionNumber = 1;
+      totalQuestions = Number(questionCountSelect.value);
+      timeLimit = Number(timeLimitSelect.value);
+      roundHistory.length = 0;
+      randomChallenge();
+    }
+
+    function trackSessionStats(percent) {
+      playerStats.sessions += 1;
+      updatePracticeStreak();
+      playerStats.bestPercent = Math.max(playerStats.bestPercent, percent);
+
+      roundHistory.forEach(item => {
+        playerStats.totalAnswered += 1;
+        playerStats.totalResponseMs += item.responseMs || 0;
+
+        if (item.correct) {
+          playerStats.totalCorrect += 1;
+        } else {
+          playerStats.misses[item.interval] = (playerStats.misses[item.interval] || 0) + 1;
+        }
+      });
+
+      const answered = roundHistory.length || 1;
+      const avgMs = Math.round(roundHistory.reduce((sum, item) => sum + (item.responseMs || 0), 0) / answered);
+      playerStats.history = playerStats.history || [];
+      playerStats.history.push({
+        percent,
+        score,
+        total: totalQuestions,
+        mode: trainerMode,
+        avgMs,
+        avgSeconds: (avgMs / 1000).toFixed(1),
+        date: new Date().toISOString()
+      });
+      playerStats.history = playerStats.history.slice(-10);
+
+      saveStats();
+      updatePlayerCard();
+    }
+
+    function finishGame() {
+      clearTimer();
+      gameActive = false;
+      acceptingAnswers = false;
+      startGameButton.textContent = 'Start game';
+      startGameButton.classList.remove('secondary');
+      playTone('finish');
+      updateStats();
+
+      const percent = totalQuestions ? Math.round((score / totalQuestions) * 100) : 0;
+
+      trackSessionStats(percent);
+      const timeouts = roundHistory.filter(x => x.timedOut).length;
+      const incorrect = roundHistory.filter(x => !x.correct && !x.timedOut).length;
+
+      summaryTitle.textContent = percent >= 80 ? 'Fretboard fireworks!' : percent >= 50 ? 'Good round!' : 'Keep the fingers curious';
+      const modeName = trainerMode === 'notes'
+        ? 'note trainer'
+        : trainerMode === 'chords'
+          ? 'chord trainer'
+          : 'interval trainer';
+      summaryText.textContent = `You scored ${score} out of ${totalQuestions} (${percent}%) in ${modeName}. Timeouts: ${timeouts}. Misses: ${incorrect}.`;
+      summaryTip.textContent = percent >= 80
+        ? 'Nice work. Try reducing the time limit or increasing the fret distance.'
+        : percent >= 50
+          ? 'You are getting the map into your hands. Another round at the same settings should sharpen it nicely.'
+          : 'Try max 3 frets apart and one octave mode for a calmer little dojo.';
+      summaryPanel.classList.add('show');
+    }
+
+    function practiceChallenge(playSound = true) {
+      if (playSound) {
+        initAudio();
+        playTone('tap');
+      }
+      clearTimer();
+      clearPracticeAdvance();
+      gameActive = false;
+      acceptingAnswers = true;
+      score = 0;
+      streak = 0;
+      questionNumber = 0;
+      startGameButton.textContent = 'Start game';
+      startGameButton.classList.remove('secondary');
+      summaryPanel.classList.remove('show');
+      randomChallenge();
+      updateStats();
+    }
+
+    settingsButton.addEventListener('click', () => {
+      const isOpen = settingsPanel.classList.toggle('open');
+      settingsButton.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    muteButton.addEventListener('click', () => {
+      muted = !muted;
+      muteButton.textContent = muted ? 'Sound: Off' : 'Sound: On';
+      muteButton.classList.toggle('active', muted);
+      if (muted && audioContext && audioContext.state === 'running') {
+        audioContext.suspend();
+      }
+    });
+
+    document.addEventListener('click', event => {
+      if (!settingsPanel.classList.contains('open')) return;
+      if (settingsPanel.contains(event.target) || settingsButton.contains(event.target)) return;
+      settingsPanel.classList.remove('open');
+      settingsButton.setAttribute('aria-expanded', 'false');
+    });
+
+    moreStatsButton.addEventListener('click', () => {
+      statsModal.classList.add('show');
+    });
+
+    closeStatsButton.addEventListener('click', () => {
+      statsModal.classList.remove('show');
+    });
+
+    statsModal.addEventListener('click', event => {
+      if (event.target === statsModal) {
+        statsModal.classList.remove('show');
+      }
+    });
+
+    startGameButton.addEventListener('click', startGame);
+    playAgainButton.addEventListener('click', startGame);
+    summaryPracticeButton.addEventListener('click', practiceChallenge);
+    modeButton.addEventListener('click', () => {
+      trainerMode = trainerMode === 'intervals'
+        ? 'notes'
+        : trainerMode === 'notes'
+          ? 'chords'
+          : 'intervals';
+      applyModeUI();
+      practiceChallenge();
+    });
+    rangeSelect.addEventListener('change', practiceChallenge);
+    fretSpanSelect.addEventListener('change', practiceChallenge);
+    directionSelect.addEventListener('change', practiceChallenge);
+    chordComplexitySelect.addEventListener('change', practiceChallenge);
+    inversionSelect.addEventListener('change', practiceChallenge);
+    alteredTriadsSelect.addEventListener('change', practiceChallenge);
+
+    orientationSelect.addEventListener('change', () => {
+      clearPracticeAdvance();
+      if (current) renderChallenge();
+    });
+    window.addEventListener('resize', () => current && renderChallenge());
+
+    function runStartupChecks() {
+      const requiredElements = [
+        ['fretboard', fretboard],
+        ['arrowPath', arrowPath],
+        ['arrowMid', arrowMid],
+        ['answerBox', answerBox],
+        ['choices', choices],
+        ['pageTitle', pageTitle],
+        ['introText', introText],
+        ['modeButton', modeButton],
+        ['settingsButton', settingsButton],
+        ['settingsPanel', settingsPanel],
+        ['muteButton', muteButton],
+        ['rangeSelect', rangeSelect],
+        ['fretSpanSelect', fretSpanSelect],
+        ['orientationSelect', orientationSelect],
+        ['directionSelect', directionSelect],
+        ['questionCountSelect', questionCountSelect],
+        ['timeLimitSelect', timeLimitSelect],
+        ['alteredTriadsSelect', alteredTriadsSelect],
+        ['startGame', startGameButton],
+        ['playAgain', playAgainButton],
+        ['summaryPractice', summaryPracticeButton],
+        ['practiceStreakMainStat', practiceStreakMainStat],
+        ['accuracyStat', accuracyStat],
+        ['moreStatsButton', moreStatsButton],
+        ['statsModal', statsModal],
+        ['closeStatsButton', closeStatsButton],
+        ['modalBestScoreStat', modalBestScoreStat],
+        ['modalAccuracyStat', modalAccuracyStat],
+        ['sessionsStat', sessionsStat],
+        ['weakSpotStat', weakSpotStat],
+        ['rollingAvgStat', rollingAvgStat],
+        ['avgGuessStat', avgGuessStat],
+        ['trendStat', trendStat],
+        ['practiceStreakStat', practiceStreakStat],
+        ['progressSparkline', progressSparkline],
+        ['sessionHistory', sessionHistory]
+      ];
+
+      requiredElements.forEach(([name, element]) => {
+        if (element === null) {
+          throw new Error(`Missing required element: #${name}`);
+        }
+      });
+
+      console.assert(intervalLabel(5) === 'Perfect 4th', 'E up to A should be a Perfect 4th');
+      console.assert(intervalLabel(-5) === 'Perfect 5th', 'A down to E should function as a Perfect 5th');
+      console.assert(noteOptions().includes('C♯/D♭'), 'Note options should include sharps/flats');
+      current = { mode: 'chords', chordIntervals: [0, 7] };
+      console.assert(chordOptions().length === 6, 'Dyads should only show dyad answers');
+      current = { mode: 'chords', chordIntervals: [0, 4, 7] };
+      console.assert(chordOptions().length === 6, 'Triads should only show triad answers');
+      console.assert(chordOptions().includes('Major triad, 1st inversion'), 'Chord options should include major inversions');
+      console.assert(chordTypes.some(chord => chord.label === 'Diminished triad' && chord.roles.join(',') === '1,♭3,♭5'), 'Diminished triad should use 1,♭3,♭5');
+      console.assert(chordTypes.some(chord => chord.label === 'Augmented triad' && chord.roles.join(',') === '1,3,♯5'), 'Augmented triad should use 1,3,♯5');
+      console.assert(chordTypes.some(chord => chord.label === 'Dominant 7th' && chord.roles.join(',') === '1,3,5,♭7'), 'Dominant 7th should use 1,3,5,♭7');
+      console.assert(chordTypes.some(chord => chord.label === 'Minor 7 flat 5' && chord.roles.join(',') === '1,♭3,♭5,♭7'), 'Minor 7 flat 5 should use 1,♭3,♭5,♭7');
+      const majorSecondInversion = chordTypes.find(chord => chord.label === 'Major triad, 2nd inversion');
+      console.assert(majorSecondInversion.roles.join(',') === '5,1,3', 'Major 2nd inversion labels should reveal as 5,1,3');
+      console.assert(averagePercent([{ percent: 50 }, { percent: 100 }]) === 75, 'Average percent should calculate rolling averages');
+      console.assert(daysBetween('2026-05-17', '2026-05-18') === 1, 'Practice streak should recognise consecutive days');
+    }
+
+    runStartupChecks();
+    applyModeUI();
+    updatePlayerCard();
+    drawBoard();
+    practiceChallenge(false);
+    updateStats();
+  </script>
+</body>
+</html>
