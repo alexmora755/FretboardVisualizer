@@ -548,6 +548,27 @@
       margin: 8px 0 14px;
     }
 
+    .stats-mode-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 14px 0 18px;
+    }
+
+    .stats-mode-tab {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: none;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+    }
+
+    .stats-mode-tab.active {
+      background: var(--accent-2);
+      color: #082f49;
+    }
+
     .modal-stats-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1154,6 +1175,13 @@
           <h2 id="statsModalTitle">Player stats</h2>
           <p>Your last 10 game sessions, rolling averages, and the little troublemakers that need more practice.</p>
 
+          <div id="statsModeTabs" class="stats-mode-tabs">
+            <button class="stats-mode-tab active" data-mode="overall" type="button">Overall</button>
+            <button class="stats-mode-tab" data-mode="intervals" type="button">Intervals</button>
+            <button class="stats-mode-tab" data-mode="notes" type="button">Notes</button>
+            <button class="stats-mode-tab" data-mode="chords" type="button">Chords</button>
+          </div>
+
           <div class="modal-stats-grid">
             <div class="player-metric">
               <div class="player-metric-label">Best score</div>
@@ -1277,6 +1305,7 @@
     const practiceStreakStat = document.getElementById('practiceStreakStat');
     const progressSparkline = document.getElementById('progressSparkline');
     const sessionHistory = document.getElementById('sessionHistory');
+    const statsModeTabs = document.getElementById('statsModeTabs');
 
     const stringTunings = [40, 45, 50, 55, 59, 64]; // Low E to high E, MIDI notes
     const stringNames = ['E', 'A', 'D', 'G', 'B', 'E'];
@@ -1343,10 +1372,62 @@
       { label: 'Minor triad, 2nd inversion', intervals: [0, 5, 8], roles: ['5', '1', '♭3'] },
       { label: 'Diminished triad', intervals: [0, 3, 6], roles: ['1', '♭3', '♭5'], altered: true },
       { label: 'Augmented triad', intervals: [0, 4, 8], roles: ['1', '3', '♯5'], altered: true },
-      { label: 'Dominant 7th', intervals: [0, 4, 7, 10], roles: ['1', '3', '5', '♭7'], seventh: true },
-      { label: 'Major 7th', intervals: [0, 4, 7, 11], roles: ['1', '3', '5', '7'], seventh: true },
-      { label: 'Minor 7th', intervals: [0, 3, 7, 10], roles: ['1', '♭3', '5', '♭7'], seventh: true },
-      { label: 'Minor 7 flat 5', intervals: [0, 3, 6, 10], roles: ['1', '♭3', '♭5', '♭7'], seventh: true }
+      { label: 'Dominant 7th', intervals: [0, 4, 7, 10], roles: ['1', '3', '5', '♭7'], seventh: true, voicings: [
+        { baseString: 1, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: -1, role: '3' },
+          { stringOffset: 2, fretOffset: 0, role: '♭7' },
+          { stringOffset: 3, fretOffset: -2, role: '5' }
+        ]},
+        { baseString: 2, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: 2, role: '5' },
+          { stringOffset: 2, fretOffset: 0, role: '♭7' },
+          { stringOffset: 3, fretOffset: 1, role: '3' }
+        ]}
+      ] },
+      { label: 'Major 7th', intervals: [0, 4, 7, 11], roles: ['1', '3', '5', '7'], seventh: true, voicings: [
+        { baseString: 1, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: -1, role: '3' },
+          { stringOffset: 2, fretOffset: 1, role: '7' },
+          { stringOffset: 3, fretOffset: -2, role: '5' }
+        ]},
+        { baseString: 2, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: 2, role: '5' },
+          { stringOffset: 2, fretOffset: 1, role: '7' },
+          { stringOffset: 3, fretOffset: 1, role: '3' }
+        ]}
+      ] },
+      { label: 'Minor 7th', intervals: [0, 3, 7, 10], roles: ['1', '♭3', '5', '♭7'], seventh: true, voicings: [
+        { baseString: 1, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: -2, role: '♭3' },
+          { stringOffset: 2, fretOffset: 0, role: '♭7' },
+          { stringOffset: 3, fretOffset: -2, role: '5' }
+        ]},
+        { baseString: 2, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: 2, role: '5' },
+          { stringOffset: 2, fretOffset: 0, role: '♭7' },
+          { stringOffset: 3, fretOffset: 0, role: '♭3' }
+        ]}
+      ] },
+      { label: 'Minor 7 flat 5', intervals: [0, 3, 6, 10], roles: ['1', '♭3', '♭5', '♭7'], seventh: true, voicings: [
+        { baseString: 1, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: -2, role: '♭3' },
+          { stringOffset: 2, fretOffset: 0, role: '♭7' },
+          { stringOffset: 3, fretOffset: -3, role: '♭5' }
+        ]},
+        { baseString: 2, offsets: [
+          { stringOffset: 0, fretOffset: 0, role: '1' },
+          { stringOffset: 1, fretOffset: 1, role: '♭5' },
+          { stringOffset: 2, fretOffset: 0, role: '♭7' },
+          { stringOffset: 3, fretOffset: 0, role: '♭3' }
+        ]}
+      ] }
     ];
 
     function chordOptions() {
@@ -1421,6 +1502,7 @@
     const STORAGE_KEY = 'guitarTrainerStats';
 
     const playerStats = loadStats();
+    let activeStatsMode = 'overall';
 
     function isPhoneLayout() {
       return window.matchMedia('(max-width: 760px)').matches;
@@ -1546,7 +1628,12 @@
           misses: stored?.misses || {},
           history: Array.isArray(stored?.history) ? stored.history.slice(-10) : [],
           practiceStreak: stored?.practiceStreak || 0,
-          lastPracticeDate: stored?.lastPracticeDate || null
+          lastPracticeDate: stored?.lastPracticeDate || null,
+          byMode: stored?.byMode || {
+            intervals: createEmptyModeStats(),
+            notes: createEmptyModeStats(),
+            chords: createEmptyModeStats()
+          }
         };
       } catch {
         return {
@@ -1558,17 +1645,50 @@
           misses: {},
           history: [],
           practiceStreak: 0,
-          lastPracticeDate: null
+          lastPracticeDate: null,
+          byMode: {
+            intervals: createEmptyModeStats(),
+            notes: createEmptyModeStats(),
+            chords: createEmptyModeStats()
+          }
         };
       }
+    }
+
+    function createEmptyModeStats() {
+      return {
+        sessions: 0,
+        bestPercent: 0,
+        totalCorrect: 0,
+        totalAnswered: 0,
+        totalResponseMs: 0,
+        misses: {},
+        history: []
+      };
+    }
+
+    function getStatsView(mode = activeStatsMode) {
+      if (mode === 'overall') {
+        return {
+          sessions: playerStats.sessions,
+          bestPercent: playerStats.bestPercent,
+          totalCorrect: playerStats.totalCorrect,
+          totalAnswered: playerStats.totalAnswered,
+          totalResponseMs: playerStats.totalResponseMs,
+          misses: playerStats.misses,
+          history: playerStats.history
+        };
+      }
+
+      return playerStats.byMode?.[mode] || createEmptyModeStats();
     }
 
     function saveStats() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(playerStats));
     }
 
-    function weakestInterval() {
-      const entries = Object.entries(playerStats.misses);
+    function weakestInterval(statsView = getStatsView()) {
+      const entries = Object.entries(statsView.misses || {});
       if (!entries.length) return '—';
 
       entries.sort((a, b) => b[1] - a[1]);
@@ -1607,8 +1727,8 @@
       playerStats.lastPracticeDate = today;
     }
 
-    function trendLabel() {
-      const history = playerStats.history || [];
+    function trendLabel(statsView = getStatsView()) {
+      const history = statsView.history || [];
       if (history.length < 4) return '—';
 
       const midpoint = Math.floor(history.length / 2);
@@ -1621,9 +1741,9 @@
       return 'Flat';
     }
 
-    function drawSparkline() {
+    function drawSparkline(statsView = getStatsView()) {
       progressSparkline.innerHTML = '';
-      const history = playerStats.history || [];
+      const history = statsView.history || [];
 
       if (!history.length) {
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1649,9 +1769,9 @@
       progressSparkline.appendChild(path);
     }
 
-    function drawSessionHistory() {
+    function drawSessionHistory(statsView = getStatsView()) {
       sessionHistory.innerHTML = '';
-      const history = playerStats.history || [];
+      const history = statsView.history || [];
 
       if (!history.length) {
         const chip = document.createElement('div');
@@ -1671,27 +1791,30 @@
     }
 
     function updatePlayerCard() {
-      const accuracy = playerStats.totalAnswered
+      const overallStats = getStatsView('overall');
+      const activeStats = getStatsView(activeStatsMode);
+
+      const accuracy = overallStats.totalAnswered
         ? Math.round((playerStats.totalCorrect / playerStats.totalAnswered) * 100)
         : 0;
 
-      const rollingAverage = averagePercent(playerStats.history || []);
-      const avgGuessSeconds = playerStats.totalAnswered && playerStats.totalResponseMs
+      const rollingAverage = averagePercent(activeStats.history || []);
+      const avgGuessSeconds = activeStats.totalAnswered && activeStats.totalResponseMs
         ? (playerStats.totalResponseMs / playerStats.totalAnswered / 1000).toFixed(1)
         : '—';
 
       practiceStreakMainStat.textContent = `${playerStats.practiceStreak || 0} day${playerStats.practiceStreak === 1 ? '' : 's'}`;
       accuracyStat.textContent = `${accuracy}%`;
-      modalBestScoreStat.textContent = `${playerStats.bestPercent}%`;
+      modalBestScoreStat.textContent = `${activeStats.bestPercent}%`;
       modalAccuracyStat.textContent = `${accuracy}%`;
-      sessionsStat.textContent = playerStats.sessions;
-      weakSpotStat.textContent = weakestInterval();
+      sessionsStat.textContent = activeStats.sessions;
+      weakSpotStat.textContent = weakestInterval(activeStats);
       rollingAvgStat.textContent = `${rollingAverage}%`;
       avgGuessStat.textContent = avgGuessSeconds === '—' ? '—' : `${avgGuessSeconds}s`;
-      trendStat.textContent = trendLabel();
+      trendStat.textContent = trendLabel(activeStats);
       practiceStreakStat.textContent = `${playerStats.practiceStreak || 0} day${playerStats.practiceStreak === 1 ? '' : 's'}`;
-      drawSparkline();
-      drawSessionHistory();
+      drawSparkline(activeStats);
+      drawSessionHistory(activeStats);
     }
 
     function updateStats() {
@@ -1821,6 +1944,41 @@
       }, [[]]);
     }
 
+    function chooseSeventhVoicing(chordType) {
+      const visibleLimit = randomFretLimit();
+      const maxFretSpan = Number(fretSpanSelect.value);
+      const candidates = [];
+
+      (chordType.voicings || []).forEach(shape => {
+        const minOffset = Math.min(...shape.offsets.map(note => note.fretOffset));
+        const maxOffset = Math.max(...shape.offsets.map(note => note.fretOffset));
+        const minBaseFret = Math.max(0, -minOffset);
+        const maxBaseFret = Math.min(visibleLimit - maxOffset, visibleLimit);
+
+        for (let baseFret = minBaseFret; baseFret <= maxBaseFret; baseFret++) {
+          const notes = shape.offsets.map(note => ({
+            string: shape.baseString + note.stringOffset,
+            fret: baseFret + note.fretOffset,
+            role: note.role
+          }));
+
+          const frets = notes.map(note => note.fret);
+          const span = Math.max(...frets) - Math.min(...frets);
+          const valid = notes.every(note => note.string >= 0 && note.string <= 5 && note.fret >= 0 && note.fret <= visibleLimit);
+
+          if (valid && span <= maxFretSpan) {
+            candidates.push({ notes, span });
+          }
+        }
+      });
+
+      if (!candidates.length) return null;
+
+      const sorted = candidates.sort((a, b) => a.span - b.span);
+      const playable = sorted.slice(0, Math.min(12, sorted.length));
+      return playable[Math.floor(Math.random() * playable.length)].notes;
+    }
+
     function chooseChordPositions(chordType) {
       const maxFretSpan = Number(fretSpanSelect.value);
       let bestShapes = [];
@@ -1907,8 +2065,22 @@
         availableChords = chordTypes.filter(chord => chord.intervals.length === 3 && !chord.altered);
       }
 
-      const chordType = availableChords[Math.floor(Math.random() * availableChords.length)];
-      const notes = chooseChordPositions(chordType);
+      let chordType;
+      let notes;
+      let attempts = 0;
+
+      do {
+        chordType = availableChords[Math.floor(Math.random() * availableChords.length)];
+        notes = chordType.seventh
+          ? chooseSeventhVoicing(chordType)
+          : chooseChordPositions(chordType);
+        attempts++;
+      } while ((!notes || !notes.length) && attempts < 60);
+
+      if (!notes || !notes.length) {
+        chordType = chordTypes.find(chord => chord.label === 'Major triad');
+        notes = chooseChordPositions(chordType);
+      }
 
       current = {
         mode: 'chords',
@@ -2241,6 +2413,34 @@
       });
       playerStats.history = playerStats.history.slice(-10);
 
+      const modeStats = playerStats.byMode[trainerMode] || createEmptyModeStats();
+      modeStats.sessions += 1;
+      modeStats.bestPercent = Math.max(modeStats.bestPercent, percent);
+
+      roundHistory.forEach(item => {
+        modeStats.totalAnswered += 1;
+        modeStats.totalResponseMs += item.responseMs || 0;
+
+        if (item.correct) {
+          modeStats.totalCorrect += 1;
+        } else {
+          modeStats.misses[item.interval] = (modeStats.misses[item.interval] || 0) + 1;
+        }
+      });
+
+      modeStats.history.push({
+        percent,
+        score,
+        total: totalQuestions,
+        mode: trainerMode,
+        avgMs,
+        avgSeconds: (avgMs / 1000).toFixed(1),
+        date: new Date().toISOString()
+      });
+
+      modeStats.history = modeStats.history.slice(-10);
+      playerStats.byMode[trainerMode] = modeStats;
+
       saveStats();
       updatePlayerCard();
     }
@@ -2319,6 +2519,19 @@
       statsModal.classList.add('show');
     });
 
+    statsModeTabs.addEventListener('click', event => {
+      const button = event.target.closest('.stats-mode-tab');
+      if (!button) return;
+
+      activeStatsMode = button.dataset.mode;
+
+      [...statsModeTabs.querySelectorAll('.stats-mode-tab')].forEach(tab => {
+        tab.classList.toggle('active', tab === button);
+      });
+
+      updatePlayerCard();
+    });
+
     closeStatsButton.addEventListener('click', () => {
       statsModal.classList.remove('show');
     });
@@ -2391,7 +2604,8 @@
         ['trendStat', trendStat],
         ['practiceStreakStat', practiceStreakStat],
         ['progressSparkline', progressSparkline],
-        ['sessionHistory', sessionHistory]
+        ['sessionHistory', sessionHistory],
+        ['statsModeTabs', statsModeTabs]
       ];
 
       requiredElements.forEach(([name, element]) => {
@@ -2412,11 +2626,16 @@
       console.assert(chordTypes.some(chord => chord.label === 'Augmented triad' && chord.roles.join(',') === '1,3,♯5'), 'Augmented triad should use 1,3,♯5');
       console.assert(chordTypes.some(chord => chord.label === 'Dominant 7th' && chord.roles.join(',') === '1,3,5,♭7'), 'Dominant 7th should use 1,3,5,♭7');
       console.assert(chordTypes.some(chord => chord.label === 'Minor 7 flat 5' && chord.roles.join(',') === '1,♭3,♭5,♭7'), 'Minor 7 flat 5 should use 1,♭3,♭5,♭7');
+      const dominantSeventh = chordTypes.find(chord => chord.label === 'Dominant 7th');
+      console.assert(Array.isArray(dominantSeventh.voicings) && dominantSeventh.voicings.length >= 2, 'Dominant 7th should use curated playable voicings');
       const majorSecondInversion = chordTypes.find(chord => chord.label === 'Major triad, 2nd inversion');
       console.assert(majorSecondInversion.roles.join(',') === '5,1,3', 'Major 2nd inversion labels should reveal as 5,1,3');
       console.assert(averagePercent([{ percent: 50 }, { percent: 100 }]) === 75, 'Average percent should calculate rolling averages');
       console.assert(daysBetween('2026-05-17', '2026-05-18') === 1, 'Practice streak should recognise consecutive days');
       console.assert(visibleFretCount() === 12 || visibleFretCount() === 7, 'Visible fret count should be either full neck or mobile teaching zone');
+      const emptyModeStats = createEmptyModeStats();
+      console.assert(emptyModeStats.sessions === 0, 'Mode stats should initialise empty');
+      console.assert(getStatsView('intervals').history !== undefined, 'Mode-specific stats views should exist');
     }
 
     runStartupChecks();
