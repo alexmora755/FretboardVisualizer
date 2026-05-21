@@ -642,6 +642,53 @@
       border: 1px solid rgba(255,255,255,0.09);
       border-radius: 999px;
       padding: 7px 10px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .chord-filter-toggle {
+      cursor: pointer;
+      transition: all 0.18s ease;
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      box-shadow: none;
+      font-size: 0.84rem;
+    }
+
+    .chord-filter-toggle.active {
+      background: rgba(56,189,248,0.22);
+      color: var(--text);
+      border-color: rgba(56,189,248,0.45);
+    }
+
+    .chord-filter-toggle:hover {
+      transform: translateY(-1px);
+    }
+
+    .legend.chord-mode .interval-legend {
+      display: none;
+    }
+
+    .legend:not(.chord-mode) .chord-filter-toggle {
+      display: none;
+    }
+
+    .legend:not(.chord-mode) .general-legend {
+      display: inline-flex;
+    }
+
+    .legend.chord-mode .general-legend {
+      opacity: 0.7;
+    }
+
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 999px;
+      padding: 7px 10px;
     }
 
     .dot {
@@ -762,8 +809,7 @@
         font-size: 0.74rem;
       }
 
-      .legend .pill:nth-child(3),
-      .legend .pill:nth-child(4) {
+      .legend:not(.chord-mode) .general-legend {
         display: none;
       }
 
@@ -1109,11 +1155,17 @@
         </div>
       </div>
 
-      <div class="legend">
-        <span class="pill"><span class="dot"></span>Base note</span>
-        <span class="pill"><span class="dot end-dot"></span>Target note</span>
-        <span class="pill">Chord trainer: all dots are blue until revealed</span>
-        <span class="pill">Standard tuning: E A D G B E</span>
+      <div class="legend" id="legendBar">
+        <span class="pill interval-legend"><span class="dot"></span>Base note</span>
+        <span class="pill interval-legend"><span class="dot end-dot"></span>Target note</span>
+
+        <button class="pill chord-filter-toggle" data-chord-filter="dyads" type="button">Dyads</button>
+        <button class="pill chord-filter-toggle active" data-chord-filter="triads" type="button">Triads</button>
+        <button class="pill chord-filter-toggle" data-chord-filter="sevenths" type="button">7ths</button>
+        <button class="pill chord-filter-toggle" data-chord-filter="altered" type="button">Altered triads</button>
+        <button class="pill chord-filter-toggle" data-chord-filter="open" type="button">Open chords</button>
+
+        <span class="pill general-legend">Standard tuning: E A D G B E</span>
       </div>
 
       <div class="answer-panel">
@@ -1290,6 +1342,8 @@
     const summaryPracticeButton = document.getElementById('summaryPractice');
 
     const practiceStreakMainStat = document.getElementById('practiceStreakMainStat');
+    const legendBar = document.getElementById('legendBar');
+    const chordFilterButtons = [...document.querySelectorAll('.chord-filter-toggle')];
     const accuracyStat = document.getElementById('accuracyStat');
     const moreStatsButton = document.getElementById('moreStatsButton');
     const statsModal = document.getElementById('statsModal');
@@ -1357,6 +1411,14 @@
       return noteNames;
     }
 
+    const chordFilterState = {
+      dyads: false,
+      triads: true,
+      sevenths: false,
+      altered: false,
+      open: false
+    };
+
     const chordTypes = [
       { label: 'Perfect 5th dyad', intervals: [0, 7], roles: ['1', '5'] },
       { label: 'Major 3rd dyad', intervals: [0, 4], roles: ['1', '3'] },
@@ -1364,10 +1426,42 @@
       { label: 'Major 6th dyad', intervals: [0, 9], roles: ['1', '6'] },
       { label: 'Minor 6th dyad', intervals: [0, 8], roles: ['1', '♭6'] },
       { label: 'Octave dyad', intervals: [0, 12], roles: ['1', '8'] },
-      { label: 'Major triad', intervals: [0, 4, 7], roles: ['1', '3', '5'] },
+      { label: 'Major triad', intervals: [0, 4, 7], roles: ['1', '3', '5'], standard: true },
+      { label: 'Open E major', category: 'open', intervals: [0, 4, 7], roles: ['1', '5', '1', '3', '5', '1'], standard: true, fixedShape: [
+        { string: 5, fret: 0, role: '1' },
+        { string: 4, fret: 2, role: '5' },
+        { string: 3, fret: 2, role: '1' },
+        { string: 2, fret: 1, role: '3' },
+        { string: 1, fret: 0, role: '5' },
+        { string: 0, fret: 0, role: '1' }
+      ] },
+      { label: 'Open A major', category: 'open', intervals: [0, 4, 7], roles: ['1', '5', '1', '3', '5'], standard: true, fixedShape: [
+        { string: 5, fret: null, role: 'x' },
+        { string: 4, fret: 0, role: '1' },
+        { string: 3, fret: 2, role: '5' },
+        { string: 2, fret: 2, role: '1' },
+        { string: 1, fret: 2, role: '3' },
+        { string: 0, fret: 0, role: '5' }
+      ] },
       { label: 'Major triad, 1st inversion', intervals: [0, 3, 8], roles: ['3', '5', '1'] },
       { label: 'Major triad, 2nd inversion', intervals: [0, 5, 9], roles: ['5', '1', '3'] },
-      { label: 'Minor triad', intervals: [0, 3, 7], roles: ['1', '♭3', '5'] },
+      { label: 'Minor triad', intervals: [0, 3, 7], roles: ['1', '♭3', '5'], standard: true },
+      { label: 'Open E minor', category: 'open', intervals: [0, 3, 7], roles: ['1', '5', '1', '♭3', '5', '1'], standard: true, fixedShape: [
+        { string: 5, fret: 0, role: '1' },
+        { string: 4, fret: 2, role: '5' },
+        { string: 3, fret: 2, role: '1' },
+        { string: 2, fret: 0, role: '♭3' },
+        { string: 1, fret: 0, role: '5' },
+        { string: 0, fret: 0, role: '1' }
+      ] },
+      { label: 'Open A minor', category: 'open', intervals: [0, 3, 7], roles: ['1', '5', '1', '♭3', '5'], standard: true, fixedShape: [
+        { string: 5, fret: null, role: 'x' },
+        { string: 4, fret: 0, role: '1' },
+        { string: 3, fret: 2, role: '5' },
+        { string: 2, fret: 2, role: '1' },
+        { string: 1, fret: 1, role: '♭3' },
+        { string: 0, fret: 0, role: '5' }
+      ] },
       { label: 'Minor triad, 1st inversion', intervals: [0, 4, 9], roles: ['♭3', '5', '1'] },
       { label: 'Minor triad, 2nd inversion', intervals: [0, 5, 8], roles: ['5', '1', '♭3'] },
       { label: 'Diminished triad', intervals: [0, 3, 6], roles: ['1', '♭3', '♭5'], altered: true },
@@ -1430,10 +1524,117 @@
       ] }
     ];
 
+    function chordCategory(chord) {
+      if (chord.category) {
+        return chord.category;
+      }
+
+      if (chord.seventh || chord.intervals.length === 4) {
+        return 'sevenths';
+      }
+
+      if (chord.altered) {
+        return 'altered';
+      }
+
+      if (chord.intervals.length === 2) {
+        return 'dyads';
+      }
+
+      if (chord.intervals.length === 3) {
+        return 'triads';
+      }
+
+      return 'triads';
+    }
+
+    function selectedChordCategories() {
+      const selected = new Set(
+        Object.entries(chordFilterState)
+          .filter(([, isActive]) => isActive)
+          .map(([key]) => key)
+      );
+
+      if (!selected.size) selected.add('triads');
+      return selected;
+    }
+
+    function chordMatchesQuickFilters(chord) {
+      return selectedChordCategories().has(chordCategory(chord));
+    }
+
+    function syncChordComplexityFromState() {
+      const selected = selectedChordCategories();
+      const hasDyads = selected.has('dyads');
+      const hasTriads = selected.has('triads');
+      const hasSevenths = selected.has('sevenths');
+      const hasAlteredOrOpen = selected.has('altered') || selected.has('open');
+
+      if (hasDyads && !hasTriads && !hasSevenths && !hasAlteredOrOpen) chordComplexitySelect.value = 'dyads';
+      else if (!hasDyads && hasTriads && !hasSevenths && !hasAlteredOrOpen) chordComplexitySelect.value = 'triads';
+      else if (!hasDyads && !hasTriads && hasSevenths && !hasAlteredOrOpen) chordComplexitySelect.value = 'sevenths';
+      else if (hasDyads && hasTriads && !hasSevenths && !hasAlteredOrOpen) chordComplexitySelect.value = 'both';
+      else if (!hasDyads && hasTriads && hasSevenths && !hasAlteredOrOpen) chordComplexitySelect.value = 'triadsSevenths';
+      else chordComplexitySelect.value = 'all';
+    }
+
+    function setChordCategory(category) {
+      Object.assign(chordFilterState, {
+        dyads: category === 'dyads',
+        triads: category === 'triads',
+        sevenths: category === 'sevenths',
+        altered: category === 'altered',
+        open: category === 'open'
+      });
+      syncChordFilterButtons();
+      syncChordComplexityFromState();
+    }
+
+    function getAvailableChordTypes() {
+      const selectedCategories = selectedChordCategories();
+
+      let availableChords = chordTypes.filter(chord => {
+        const category = chordCategory(chord);
+
+        if (!selectedCategories.has(category)) {
+          return false;
+        }
+
+        if (category === 'triads') {
+          return chord.intervals.length === 3 && !chord.seventh && !chord.altered && !chord.category;
+        }
+
+        if (category === 'dyads') {
+          return chord.intervals.length === 2;
+        }
+
+        if (category === 'sevenths') {
+          return chord.intervals.length === 4 || chord.seventh;
+        }
+
+        if (category === 'altered') {
+          return Boolean(chord.altered);
+        }
+
+        if (category === 'open') {
+          return chord.category === 'open';
+        }
+
+        return false;
+      });
+
+      if (!availableChords.length) {
+        setChordCategory('triads');
+        availableChords = chordTypes.filter(chord => chordCategory(chord) === 'triads');
+      }
+
+      return availableChords;
+    }
+
     function chordOptions() {
       const visibleChords = current?.mode === 'chords'
-        ? chordTypes.filter(chord => chord.intervals.length === current.chordIntervals.length)
-        : chordTypes;
+        ? getAvailableChordTypes().filter(chord => chord.intervals.length === current.chordIntervals.length)
+        : getAvailableChordTypes();
 
       return visibleChords.map(chord => chord.label);
     }
@@ -1455,6 +1656,10 @@
     function updateSettingsVisibility() {
       intervalSettingsGroup.style.display = trainerMode === 'intervals' ? 'block' : 'none';
       chordSettingsGroup.style.display = trainerMode === 'chords' ? 'block' : 'none';
+    }
+
+    function syncLegendMode() {
+      legendBar.classList.toggle('chord-mode', trainerMode === 'chords');
     }
 
     function applyModeUI() {
@@ -1481,6 +1686,7 @@
       introText.textContent = currentCopy.intro;
       modeButton.textContent = currentCopy.button;
       updateSettingsVisibility();
+      syncLegendMode();
     }
 
     let current = null;
@@ -1980,6 +2186,9 @@
     }
 
     function chooseChordPositions(chordType) {
+      if (Array.isArray(chordType.fixedShape)) {
+        return chordType.fixedShape.filter(note => note.fret !== null);
+      }
       const maxFretSpan = Number(fretSpanSelect.value);
       let bestShapes = [];
 
@@ -2031,38 +2240,17 @@
     }
 
     function randomChordChallenge() {
-      let availableChords = [...chordTypes];
+      const allowedCategories = selectedChordCategories();
+      const selectedCategory = [...allowedCategories][0];
 
-      if (chordComplexitySelect.value === 'dyads') {
-        availableChords = availableChords.filter(chord => chord.intervals.length === 2);
-      }
+      let availableChords = getAvailableChordTypes();
 
-      if (chordComplexitySelect.value === 'triads') {
-        availableChords = availableChords.filter(chord => chord.intervals.length === 3);
-      }
-
-      if (chordComplexitySelect.value === 'sevenths') {
-        availableChords = availableChords.filter(chord => chord.seventh);
-      }
-
-      if (chordComplexitySelect.value === 'triadsSevenths') {
-        availableChords = availableChords.filter(chord => chord.intervals.length === 3 || chord.seventh);
-      }
-
-      if (inversionSelect.value === 'rootOnly') {
-        availableChords = availableChords.filter(chord => !chord.label.includes('inversion'));
-      }
-
-      if (inversionSelect.value === 'includeFirst') {
-        availableChords = availableChords.filter(chord => !chord.label.includes('2nd inversion'));
-      }
-
-      if (alteredTriadsSelect.value === 'standard') {
-        availableChords = availableChords.filter(chord => !chord.altered);
-      }
+      console.log('Chord category selected:', selectedCategory);
+      console.log('Available chords:', availableChords.map(ch => ch.label));
 
       if (!availableChords.length) {
-        availableChords = chordTypes.filter(chord => chord.intervals.length === 3 && !chord.altered);
+        setChordCategory('triads');
+        availableChords = chordTypes.filter(chord => chordCategory(chord) === 'triads');
       }
 
       let chordType;
@@ -2075,19 +2263,28 @@
           ? chooseSeventhVoicing(chordType)
           : chooseChordPositions(chordType);
         attempts++;
-      } while ((!notes || !notes.length) && attempts < 60);
+      } while ((!notes || !notes.length || !allowedCategories.has(chordCategory(chordType))) && attempts < 80);
 
-      if (!notes || !notes.length) {
-        chordType = chordTypes.find(chord => chord.label === 'Major triad');
-        notes = chooseChordPositions(chordType);
+      if (!notes || !notes.length || !allowedCategories.has(chordCategory(chordType))) {
+        chordType = availableChords.find(chord => chordCategory(chord) === 'triads') || chordTypes.find(chord => chord.label === 'Major triad');
+        notes = chordType.seventh
+          ? chooseSeventhVoicing(chordType)
+          : chooseChordPositions(chordType);
       }
 
       current = {
         mode: 'chords',
         chordLabel: chordType.label,
         chordIntervals: chordType.intervals,
-        chordNotes: notes
+        chordNotes: notes,
+        chordCategory: chordCategory(chordType)
       };
+
+      console.assert(
+        allowedCategories.has(current.chordCategory),
+        `Generated chord category ${current.chordCategory} was not in selected filters: ${[...allowedCategories].join(', ')}`
+      );
+
       renderChallenge();
     }
 
@@ -2171,6 +2368,7 @@
             ? 'Three-note shape. Look for the root, 3rd, and 5th relationship.'
             : 'Four-note shape. Look for the root, 3rd, 5th, and 7th relationship.';
         details.textContent = chordHint;
+        legendBar.classList.add('chord-mode');
       } else {
         const startNote = addNote(current.start, 'start', '1');
         const endNote = addNote(current.end, 'end', '2');
@@ -2180,6 +2378,7 @@
         answer.textContent = intervalLabel(current.diff);
         const directionText = current.diff < 0 ? 'below' : 'above';
         const absDiff = Math.abs(current.diff);
+        legendBar.classList.remove('chord-mode');
         details.textContent = `${current.endPos.name} is ${absDiff} semitone${absDiff === 1 ? '' : 's'} ${directionText} ${current.startPos.name}; from the base note, it functions as ${intervalLabel(current.diff)}.`;
       }
 
@@ -2545,6 +2744,31 @@
     startGameButton.addEventListener('click', startGame);
     playAgainButton.addEventListener('click', startGame);
     summaryPracticeButton.addEventListener('click', practiceChallenge);
+    function syncChordFilterButtons() {
+      chordFilterButtons.forEach(button => {
+        const key = button.dataset.chordFilter;
+        button.classList.toggle('active', Boolean(chordFilterState[key]));
+      });
+    }
+
+    chordFilterButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const key = button.dataset.chordFilter;
+        chordFilterState[key] = !chordFilterState[key];
+
+        if (!Object.values(chordFilterState).some(Boolean)) {
+          chordFilterState.triads = true;
+        }
+
+        syncChordFilterButtons();
+        syncChordComplexityFromState();
+
+        if (trainerMode === 'chords') {
+          practiceChallenge(false);
+        }
+      });
+    });
+
     modeButton.addEventListener('click', () => {
       trainerMode = trainerMode === 'intervals'
         ? 'notes'
@@ -2557,7 +2781,21 @@
     rangeSelect.addEventListener('change', practiceChallenge);
     fretSpanSelect.addEventListener('change', practiceChallenge);
     directionSelect.addEventListener('change', practiceChallenge);
-    chordComplexitySelect.addEventListener('change', practiceChallenge);
+    chordComplexitySelect.addEventListener('change', () => {
+      const value = chordComplexitySelect.value;
+      const nextState = {
+        dyads: value === 'dyads' || value === 'both' || value === 'all',
+        triads: value === 'triads' || value === 'both' || value === 'triadsSevenths' || value === 'all',
+        sevenths: value === 'sevenths' || value === 'triadsSevenths' || value === 'all',
+        altered: value === 'all',
+        open: value === 'all'
+      };
+
+      Object.assign(chordFilterState, nextState);
+      syncChordFilterButtons();
+      syncChordComplexityFromState();
+      practiceChallenge();
+    });
     inversionSelect.addEventListener('change', practiceChallenge);
     alteredTriadsSelect.addEventListener('change', practiceChallenge);
 
@@ -2617,11 +2855,13 @@
       console.assert(intervalLabel(5) === 'Perfect 4th', 'E up to A should be a Perfect 4th');
       console.assert(intervalLabel(-5) === 'Perfect 5th', 'A down to E should function as a Perfect 5th');
       console.assert(noteOptions().includes('C♯/D♭'), 'Note options should include sharps/flats');
-      current = { mode: 'chords', chordIntervals: [0, 7] };
-      console.assert(chordOptions().length === 6, 'Dyads should only show dyad answers');
+      const previousCurrentForOptions = current;
       current = { mode: 'chords', chordIntervals: [0, 4, 7] };
-      console.assert(chordOptions().length === 6, 'Triads should only show triad answers');
+      console.assert(chordOptions().every(label => !label.includes('7th') && !label.includes('dyad')), 'Triad answer buttons should not show dyads or 7th chords');
       console.assert(chordOptions().includes('Major triad, 1st inversion'), 'Chord options should include major inversions');
+      current = previousCurrentForOptions;
+      console.assert(chordTypes.some(chord => chord.label === 'Open E major'), 'Standard open major chord shapes should exist');
+      console.assert(chordTypes.some(chord => chord.label === 'Open A minor'), 'Standard open minor chord shapes should exist');
       console.assert(chordTypes.some(chord => chord.label === 'Diminished triad' && chord.roles.join(',') === '1,♭3,♭5'), 'Diminished triad should use 1,♭3,♭5');
       console.assert(chordTypes.some(chord => chord.label === 'Augmented triad' && chord.roles.join(',') === '1,3,♯5'), 'Augmented triad should use 1,3,♯5');
       console.assert(chordTypes.some(chord => chord.label === 'Dominant 7th' && chord.roles.join(',') === '1,3,5,♭7'), 'Dominant 7th should use 1,3,5,♭7');
@@ -2636,9 +2876,34 @@
       const emptyModeStats = createEmptyModeStats();
       console.assert(emptyModeStats.sessions === 0, 'Mode stats should initialise empty');
       console.assert(getStatsView('intervals').history !== undefined, 'Mode-specific stats views should exist');
+      const triadOnlyTestState = { dyads: false, triads: true, sevenths: false, altered: false, open: false };
+      const triadOnlyPool = chordTypes.filter(chord => triadOnlyTestState[chordCategory(chord)]);
+      console.assert(triadOnlyPool.every(chord => chordCategory(chord) === 'triads'), 'Triads-only pool must exclude sevenths, dyads and altered chords');
+      setChordCategory('triads');
+      console.assert(
+        getAvailableChordTypes().every(chord => chordCategory(chord) === 'triads' && chord.intervals.length === 3),
+        'Live triads-only filter must exclude every non-triad category'
+      );
+
+      Object.assign(chordFilterState, { dyads: true, triads: true, sevenths: false, altered: false, open: false });
+      syncChordFilterButtons();
+      console.assert(
+        getAvailableChordTypes().every(chord => ['dyads', 'triads'].includes(chordCategory(chord))),
+        'Multi-select dyads + triads should include only dyads and triads'
+      );
+
+      Object.assign(chordFilterState, { dyads: false, triads: true, sevenths: true, altered: false, open: false });
+      syncChordFilterButtons();
+      const triadsAndSeventhsPool = getAvailableChordTypes();
+      console.assert(
+        triadsAndSeventhsPool.some(chord => chordCategory(chord) === 'triads') && triadsAndSeventhsPool.some(chord => chordCategory(chord) === 'sevenths'),
+        'Multi-select triads + sevenths should include both triads and sevenths'
+      );
     }
 
+    setChordCategory('triads');
     runStartupChecks();
+    setChordCategory('triads');
     applyModeUI();
     updatePlayerCard();
     drawBoard();
